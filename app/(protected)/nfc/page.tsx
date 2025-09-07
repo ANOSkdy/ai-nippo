@@ -7,16 +7,16 @@ import { redirect } from 'next/navigation';
 export const dynamic = 'force-dynamic';
 
 type NFCPageProps = {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export default async function NFCPage({ searchParams }: NFCPageProps) {
+  const params = await searchParams;
+  const machineId = params.machineid;
   const session = await auth();
   if (!session?.user?.id) {
     redirect('/login');
   }
-
-  const machineId = searchParams.machineid;
   if (typeof machineId !== 'string') {
     return <div>無効な機械IDです。</div>;
   }
@@ -43,7 +43,7 @@ export default async function NFCPage({ searchParams }: NFCPageProps) {
           initialWorkDescription={initialWorkDescription}
           userName={session.user.name ?? 'ゲスト'}
           // ### 修正点 2: 取得した機械名をStampCardに渡す ###
-          machineName={searchParams.machineid as string}
+          machineName={params.machineid as string}
         />
       </main>
     );

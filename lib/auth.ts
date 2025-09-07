@@ -1,7 +1,10 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { usersTable } from '@/lib/airtable';
 import type { User } from 'next-auth';
+import type { Table } from 'airtable';
+import type { UserFields } from '@/types';
+
+let usersTable: Table<UserFields> | undefined;
 
 export const {
   handlers: { GET, POST },
@@ -22,6 +25,10 @@ export const {
         }
 
         try {
+          if (!usersTable) {
+            const mod = await import('@/lib/airtable');
+            usersTable = mod.usersTable;
+          }
           const records = await usersTable
             .select({
               filterByFormula: `{username} = '${credentials.username}'`,

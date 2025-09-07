@@ -34,9 +34,11 @@
   "engines": {
     "node": "20.x"
   },
-  "trustedDependencies": [
-    "@tailwindcss/oxide",
-    "sharp",
-    "unrs-resolver"
-  ]
+  "pnpm": {
+    "trustedDependencies": [
+      "@tailwindcss/oxide",
+      "sharp",
+      "unrs-resolver"
+    ]
+  }
 }

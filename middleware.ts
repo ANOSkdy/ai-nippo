@@ -1,4 +1,4 @@
-export { auth as middleware } from "@/lib/auth";
+export { auth as middleware } from '@/lib/auth-edge';
 
 // この設定で、どのページを認証保護の対象にするかを定義します
 export const config = {

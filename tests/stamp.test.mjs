@@ -8,6 +8,8 @@ test('validateStampRequest fails on missing fields', () => {
   assert.strictEqual(result.success, false);
 });
 
-test('tailwind config includes custom accent color', () => {
+test('tailwind config includes custom accent colors', () => {
+  assert.strictEqual(tailwindConfig.theme.extend.colors['accent-1'], '#FFD166');
   assert.strictEqual(tailwindConfig.theme.extend.colors['accent-2'], '#F25F5C');
+  assert.strictEqual(tailwindConfig.theme.extend.colors['accent-3'], '#9D59EC');
 });

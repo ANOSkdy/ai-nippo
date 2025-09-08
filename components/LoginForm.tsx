@@ -45,17 +45,17 @@ export default function LoginForm() {
 
   return (
     <div className="flex min-h-[calc(100vh-61px)] items-center justify-center bg-base">
-      <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow-md">
+      <div className="w-full max-w-sm space-y-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <p className="rounded-md border border-accent-2/50 bg-accent-2/10 p-3 text-center font-bold text-accent-2">
               {error}
             </p>
           )}
-          <div>
+          <div className="rounded-xl bg-white p-4 shadow-md">
             <label
               htmlFor="username"
-              className="block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium text-gray-700"
             >
               ID
             </label>
@@ -65,13 +65,13 @@ export default function LoginForm() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+              className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             />
           </div>
-          <div>
+          <div className="rounded-xl bg-white p-4 shadow-md">
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium text-gray-700"
             >
               パスワード
             </label>
@@ -81,13 +81,13 @@ export default function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+              className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             />
           </div>
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-md bg-primary px-4 py-2 text-lg font-bold text-white hover:bg-primary/90 disabled:opacity-50"
+            className="h-12 w-full rounded-xl bg-primary font-semibold text-white shadow-md hover:bg-primary/90 disabled:bg-primary/50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           >
             {isLoading ? 'ログイン中...' : 'ログイン'}
           </button>

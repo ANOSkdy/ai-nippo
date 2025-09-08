@@ -109,41 +109,53 @@ export default function StampCard({
   // メインのUI部分
   const mainContent = (
     <div className="space-y-4">
-        <div className="rounded-lg bg-white p-6 shadow-md">
-            <div className="space-y-2 text-center">
-                <p className="text-lg font-semibold text-gray-800">{userName} さん</p>
-                <p className="text-gray-600">
-                    <span className="font-semibold">機械:</span> {machineName}
-                </p>
-                {stampType === 'OUT' && (
-                    <p className="text-gray-600">
-                        <span className="font-semibold">現在の作業:</span> {lastWorkDescription || 'N/A'}
-                    </p>
-                )}
+      <div className="rounded-xl bg-white p-4 shadow-md">
+        <div className="space-y-2">
+          <div>
+            <span className="text-xs text-gray-500">ユーザー</span>
+            <div className="font-medium text-gray-900">{userName}</div>
+          </div>
+          <div>
+            <span className="text-xs text-gray-500">機械</span>
+            <div className="font-medium text-gray-900">{machineName}</div>
+          </div>
+          {stampType === 'OUT' && (
+            <div>
+              <span className="text-xs text-gray-500">現在の作業</span>
+              <div className="font-medium text-gray-900">{lastWorkDescription || 'N/A'}</div>
             </div>
+          )}
         </div>
-        {stampType === 'IN' && (
-            <form id="check-in-form" onSubmit={handleCheckIn} className="space-y-4">
-                <div className="rounded-lg bg-white p-6 shadow-md">
-                    <label htmlFor="workDescription" className="mb-2 block text-sm font-medium text-gray-700">
-                        本日の作業内容を選択
-                    </label>
-                    <select
-                        id="workDescription"
-                        name="workDescription"
-                        required
-                        value={selectedWork}
-                        onChange={(e) => setSelectedWork(e.target.value)}
-                        className="mt-1 block w-full rounded-md border-gray-300 py-3 pl-3 pr-10 text-base shadow-sm focus:border-primary focus:outline-none focus:ring-primary"
-                    >
-                        <option value="" disabled>選択してください</option>
-                        {workTypes.map((wt) => (
-                            <option key={wt.id} value={wt.fields.name}>{wt.fields.name}</option>
-                        ))}
-                    </select>
-                </div>
-            </form>
-        )}
+      </div>
+      {stampType === 'IN' && (
+        <form id="check-in-form" onSubmit={handleCheckIn} className="space-y-4">
+          <div className="rounded-xl bg-white p-4 shadow-md">
+            <label
+              htmlFor="workDescription"
+              className="mb-2 block text-sm font-medium text-gray-900"
+            >
+              本日の作業内容を選択
+            </label>
+            <select
+              id="workDescription"
+              name="workDescription"
+              required
+              value={selectedWork}
+              onChange={(e) => setSelectedWork(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="" disabled>
+                選択してください
+              </option>
+              {workTypes.map((wt) => (
+                <option key={wt.id} value={wt.fields.name}>
+                  {wt.fields.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </form>
+      )}
     </div>
   );
 
@@ -160,7 +172,7 @@ export default function StampCard({
                 <button
                     onClick={() => (document.getElementById('check-in-form') as HTMLFormElement)?.requestSubmit()}
                     disabled={!selectedWork || isLoading}
-                    className="w-full rounded-lg bg-primary px-4 py-4 text-xl font-bold text-white shadow-lg hover:bg-primary/90 disabled:bg-gray-400"
+                    className="w-full rounded-xl bg-primary px-4 py-4 text-lg font-semibold text-white shadow-md hover:bg-primary/90 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:bg-primary/50"
                 >
                     出 勤
                 </button>
@@ -169,7 +181,7 @@ export default function StampCard({
                     onClick={handleCheckOut}
                     disabled={isLoading}
                     type="button"
-                    className="w-full rounded-lg bg-primary px-4 py-4 text-xl font-bold text-white shadow-lg hover:bg-primary/90 disabled:bg-gray-400"
+                    className="w-full rounded-xl bg-primary px-4 py-4 text-lg font-semibold text-white shadow-md hover:bg-primary/90 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:bg-primary/50"
                 >
                     退 勤
                 </button>

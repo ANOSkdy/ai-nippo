@@ -76,7 +76,7 @@ export default function LoginPage() {
           />
         </div>
         {error && (
-          <p className="text-sm text-[accent-2]">{error}</p>
+          <p className="text-sm text-accent-2">{error}</p>
         )}
         <button
           type="submit"

@@ -148,19 +148,14 @@ export default function StampCard({
   );
 
   return (
-    <div className="relative flex min-h-[calc(100vh-61px)] w-full flex-col p-4 pb-32">
+    <div className="relative flex min-h-[calc(100vh-61px)] w-full flex-col items-center justify-center p-4">
         <div className="w-full max-w-md mx-auto">
             {mainContent}
-            <div className="mt-6">
-                <LogoutButton />
-            </div>
-        </div>
-        <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white/80 p-4 backdrop-blur-sm">
             {stampType === 'IN' ? (
                 <button
                     onClick={() => (document.getElementById('check-in-form') as HTMLFormElement)?.requestSubmit()}
                     disabled={!selectedWork || isLoading}
-                    className="work-btn w-full text-xl disabled:bg-gray-400"
+                    className="work-btn w-full min-h-14 text-xl py-4 disabled:bg-gray-400"
                 >
                     出 勤
                 </button>
@@ -169,11 +164,14 @@ export default function StampCard({
                     onClick={handleCheckOut}
                     disabled={isLoading}
                     type="button"
-                    className="work-btn w-full text-xl disabled:bg-gray-400"
+                    className="work-btn w-full min-h-14 text-xl py-4 disabled:bg-gray-400"
                 >
                     退 勤
                 </button>
             )}
+            <div className="mt-6">
+                <LogoutButton />
+            </div>
         </div>
     </div>
   );

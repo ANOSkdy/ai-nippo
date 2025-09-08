@@ -38,6 +38,7 @@ export default function StampCard({
 
   const searchParams = useSearchParams();
   const machineId = searchParams.get('machineid');
+  const siteName = searchParams.get('site');
 
   useEffect(() => {
     if (stampType === 'IN') {
@@ -112,6 +113,9 @@ export default function StampCard({
         <div className="rounded-lg bg-white p-6 shadow-md">
             <div className="space-y-2 text-center">
                 <p className="text-lg font-semibold text-gray-800">{userName} さん</p>
+                <p className="text-gray-600">
+                    <span className="font-semibold">現場:</span> {siteName ?? '不明'}
+                </p>
                 <p className="text-gray-600">
                     <span className="font-semibold">機械:</span> {machineName}
                 </p>

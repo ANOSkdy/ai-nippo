@@ -37,13 +37,13 @@ export default async function NFCPage({ searchParams }: NFCPageProps) {
     const initialWorkDescription = lastLog?.fields.workDescription ?? '';
 
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
+      <main className="flex min-h-[calc(100vh-61px)] items-center justify-center bg-base p-4">
         <StampCard
           initialStampType={initialStampType}
           initialWorkDescription={initialWorkDescription}
           userName={session.user.name ?? 'ゲスト'}
           // ### 修正点 2: 取得した機械名をStampCardに渡す ###
-          machineName={searchParams.machineid as string}
+          machineName={machine.fields.name}
         />
       </main>
     );

@@ -7,3 +7,9 @@ test('toUtcFromMaybeLocal parses JST string to UTC', () => {
   assert.ok(dt);
   assert.strictEqual(dt.toISOString(), '2025-09-08T22:49:40.000Z');
 });
+
+test('toUtcFromMaybeLocal handles JST string without seconds', () => {
+  const dt = toUtcFromMaybeLocal('2025/9/9 7:49');
+  assert.ok(dt);
+  assert.strictEqual(dt.toISOString(), '2025-09-08T22:49:00.000Z');
+});

@@ -147,27 +147,46 @@ function formatJst(date: Date) {
 }
 
 async function findLatestInBefore(out: NormalizedLog & { ts: Date }) {
-  const outLocal = new Date(out.ts.getTime() + TZ_OFFSET);
-  const outStr = formatJst(outLocal);
+  // Airtable 側では文字列 timestamp 比較をやめ、IN 候補を広めに取得して
+  // Node 側で厳密に ts < out.ts の最新を選ぶ。
+  const userStr = escapeQuotes(String(out.user ?? ''));
+  const siteStr = escapeQuotes(String(out.siteName ?? ''));
+  const workStr = escapeQuotes(String(out.workDescription ?? ''));
+
+  // user が Number フィールドでも Text フィールドでもヒットさせる
+  const userClause = `OR({user} = VALUE('${userStr}'), {user} = '${userStr}')`;
   const filter = `
 AND(
-  {user} = '${escapeQuotes(String(out.user ?? ''))}',
-  {siteName} = '${escapeQuotes(String(out.siteName ?? ''))}',
-  {workDescription} = '${escapeQuotes(String(out.workDescription ?? ''))}',
-  {type} = 'IN',
-  IS_BEFORE({timestamp}, DATETIME_PARSE('${outStr}', 'YYYY-MM-DD HH:mm:ss'))
-)`;
+  ${userClause},
+  {siteName} = '${siteStr}',
+  {workDescription} = '${workStr}',
+  {type} = 'IN'
+)`.trim();
 
+  // 直近の IN を取りやすいように timestamp で降順ソート（文字列でも概ね近い順）
   const page = await withRetry(() =>
     base(TABLE_LOGS)
       .select({
         filterByFormula: filter,
         sort: [{ field: 'timestamp', direction: 'desc' }],
-        maxRecords: 1,
+        maxRecords: 50, // 十分に小さく・十分に多い範囲を取得
       })
       .firstPage(),
   );
-  return page[0] || null;
+
+  // Node 側で厳密に比較
+  let best: Airtable.Record<FieldSet> | null = null;
+  let bestTs = -Infinity;
+  for (const rec of page) {
+    const n = normalizeLog(rec);
+    if (!n.ts) continue;
+    const t = n.ts.getTime();
+    if (t < out.ts.getTime() && t > bestTs) {
+      best = rec;
+      bestTs = t;
+    }
+  }
+  return best;
 }
 
 async function findExistingSession(args: {

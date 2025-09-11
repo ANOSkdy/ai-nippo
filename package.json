@@ -7,12 +7,11 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsc app/api/stamp/validator.ts --module nodenext --target es2020 --moduleResolution nodenext --esModuleInterop --outDir tests/dist && node --test tests/stamp.test.mjs"
+    "test": "tsc app/api/stamp/validator.ts app/api/out-to-session/route.ts --module nodenext --target es2020 --moduleResolution nodenext --esModuleInterop --outDir tests/dist && node --test tests/stamp.test.mjs tests/out-to-session.test.mjs"
   },
   "dependencies": {
     "airtable": "^0.12.2",
     "bcryptjs": "^3.0.2",
-    "date-fns": "^2.30.0",
     "date-fns-tz": "^2.0.0",
     "next": "15.5.2",
     "next-auth": "5.0.0-beta.29",

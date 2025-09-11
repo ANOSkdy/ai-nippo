@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 
 interface LogFields extends FieldSet {
   timestamp: string;
-  user?: string;
+  user?: string | number;
   username?: string;
   siteName?: string;
   workDescription?: string;
@@ -34,8 +34,6 @@ const logsTable = base<LogFields>('Logs');
 const sessionTable = base<SessionFields>('Session');
 const TZ = 'Asia/Tokyo';
 
-const pad = (n: number): string => String(n).padStart(2, '0');
-
 export async function POST(req: NextRequest) {
   try {
     const { outLogId } = (await req.json()) as { outLogId?: string };
@@ -46,61 +44,61 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 1) OUT を取得
     const outRec = await logsTable.find(outLogId);
     const fOut = outRec.fields;
-
     if ((fOut.type || '').toUpperCase() !== 'OUT') {
       return NextResponse.json({ ok: true, skipped: true, reason: 'not OUT' });
     }
 
     const outTs = new Date(fOut.timestamp);
-    const outLocal = utcToZonedTime(outTs, TZ);
-    const outStr =
-      `${outLocal.getFullYear()}-` +
-      `${pad(outLocal.getMonth() + 1)}-` +
-      `${pad(outLocal.getDate())} ` +
-      `${pad(outLocal.getHours())}:${pad(outLocal.getMinutes())}:${pad(outLocal.getSeconds())}`;
 
+    // 2) 同じ user / siteName / workDescription の IN 候補を広めに取得
     const filter = `
 AND(
   {user} = '${String(fOut.user)}',
   {siteName} = '${String(fOut.siteName)}',
   {workDescription} = '${String(fOut.workDescription)}',
-  {type} = 'IN',
-  IS_BEFORE({timestamp}, DATETIME_PARSE('${outStr}', 'YYYY-MM-DD HH:mm:ss'))
+  {type} = 'IN'
 )`.trim();
 
     const ins = await logsTable
       .select({
         filterByFormula: filter,
         sort: [{ field: 'timestamp', direction: 'desc' }],
-        maxRecords: 1,
+        maxRecords: 20,
       })
       .firstPage();
 
-    if (!ins[0]) {
-      return NextResponse.json({ ok: true, skipped: true, reason: 'no IN' });
+    // 3) サーバ側で「outTs より前」の最新 IN を選択
+    let best: LogFields | null = null;
+    let bestTs = -Infinity;
+    for (const rec of ins) {
+      const ts = new Date(rec.fields.timestamp).getTime();
+      if (ts < outTs.getTime() && ts > bestTs) {
+        best = rec.fields;
+        bestTs = ts;
+      }
+    }
+    if (!best) {
+      return NextResponse.json({ ok: true, skipped: true, reason: 'no IN match' });
     }
 
-    const fIn = ins[0].fields;
+    const inTs = new Date(best.timestamp);
 
-    const inTs = new Date(fIn.timestamp);
+    // 4) 稼働時間と日付
     const hours = Math.max(0, (outTs.getTime() - inTs.getTime()) / 3600000);
     const hoursRounded = Math.round(hours * 100) / 100;
-
     const inJst = utcToZonedTime(inTs, TZ);
-    const year = inJst.getFullYear();
-    const month = inJst.getMonth() + 1;
-    const day = inJst.getDate();
 
     const fields: SessionFields = {
-      year,
-      month,
-      day,
-      userId: String(fIn.user ?? ''),
-      username: String(fIn.username ?? ''),
-      sitename: String(fIn.siteName ?? ''),
-      workdescription: String(fIn.workDescription ?? ''),
+      year: inJst.getFullYear(),
+      month: inJst.getMonth() + 1,
+      day: inJst.getDate(),
+      userId: String(best.user ?? ''),
+      username: String(best.username ?? ''),
+      sitename: String(best.siteName ?? ''),
+      workdescription: String(best.workDescription ?? ''),
       clockInAt: inTs.toISOString(),
       clockOutAt: outTs.toISOString(),
       hours: hoursRounded,
@@ -108,11 +106,7 @@ AND(
 
     const created = await sessionTable.create([{ fields }], { typecast: true });
 
-    return NextResponse.json({
-      ok: true,
-      createdId: created?.[0]?.id,
-      fields,
-    });
+    return NextResponse.json({ ok: true, createdId: created[0].id, fields });
   } catch (e) {
     return NextResponse.json(
       { ok: false, error: String((e as Error).message) },
@@ -120,3 +114,4 @@ AND(
     );
   }
 }
+

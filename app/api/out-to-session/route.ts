@@ -58,9 +58,45 @@ export async function handleOutToSession(payload: unknown) {
   }
 
   const outLog = out as NormalizedLog & { ts: Date };
-  const inRec = await findLatestInBefore(outLog);
-  if (!inRec) return { skipped: true, reason: 'no matching IN' };
-  const inn = normalizeLog(inRec);
+  // 1) 広め検索（型揺れ吸収）
+  const search = await findInCandidates(outLog);
+  // Node 側で厳密比較（ts < out.ts）
+  const viable = search.candidates
+    .map((r) => ({ rec: r, n: normalizeLog(r) }))
+    .filter((x) => x.n.ts && x.n.ts.getTime() < outLog.ts.getTime());
+  // 同日(JST) fallback（site/work が微ズレのとき検出）
+  const sameDay = viable.filter((x) => isSameLocalDay(x.n.ts!, outLog.ts));
+
+  const pick = ((list) => {
+    let best: (typeof list)[number] | null = null;
+    let bestTs = -Infinity;
+    for (const it of list) {
+      const t = it.n.ts!.getTime();
+      if (t > bestTs) {
+        best = it;
+        bestTs = t;
+      }
+    }
+    return best?.rec ?? null;
+  })(sameDay.length ? sameDay : viable);
+
+  if (!pick) {
+    return {
+      skipped: true,
+      reason: 'no matching IN',
+      debug: {
+        user: outLog.user,
+        siteName: outLog.siteName,
+        workDescription: outLog.workDescription,
+        outTs: outLog.ts.toISOString(),
+        candidatesFound: search.candidates.length,
+        viableBeforeOut: viable.length,
+        sameDayJST: sameDay.length,
+        sample: search.candidates.slice(0, 5).map((r) => r.id),
+      },
+    };
+  }
+  const inn = normalizeLog(pick);
   if (!inn.ts) return { skipped: true, reason: 'invalid IN timestamp' };
 
   const hours = Math.max(0, (out.ts.getTime() - inn.ts.getTime()) / 3600000);
@@ -98,7 +134,14 @@ export async function handleOutToSession(payload: unknown) {
   const created = await withRetry(() =>
     base(TABLE_SESSION).create([{ fields }], { typecast: true }),
   );
-  return { createdId: created?.[0]?.id, fields };
+  return {
+    createdId: created?.[0]?.id,
+    fields,
+    debug: {
+      pickedInId: pick.id,
+      pickedInTs: inn.ts?.toISOString(),
+    },
+  };
 }
 
 function escapeQuotes(v = '') {
@@ -146,47 +189,46 @@ function formatJst(date: Date) {
   )}`;
 }
 
-async function findLatestInBefore(out: NormalizedLog & { ts: Date }) {
-  // Airtable 側では文字列 timestamp 比較をやめ、IN 候補を広めに取得して
-  // Node 側で厳密に ts < out.ts の最新を選ぶ。
+async function findInCandidates(out: NormalizedLog & { ts: Date }) {
+  // user 数値/文字列の両マッチ、site/work はトリム比較
   const userStr = escapeQuotes(String(out.user ?? ''));
-  const siteStr = escapeQuotes(String(out.siteName ?? ''));
-  const workStr = escapeQuotes(String(out.workDescription ?? ''));
-
-  // user が Number フィールドでも Text フィールドでもヒットさせる
+  const siteStr = escapeQuotes(String((out.siteName ?? '').toString().trim()));
+  const workStr = escapeQuotes(String((out.workDescription ?? '').toString().trim()));
   const userClause = `OR({user} = VALUE('${userStr}'), {user} = '${userStr}')`;
   const filter = `
 AND(
   ${userClause},
-  {siteName} = '${siteStr}',
-  {workDescription} = '${workStr}',
+  OR(
+    TRIM({siteName}) = '${siteStr}',
+    TRIM({siteName}) = TRIM('${siteStr}')
+  ),
+  OR(
+    TRIM({workDescription}) = '${workStr}',
+    TRIM({workDescription}) = TRIM('${workStr}')
+  ),
   {type} = 'IN'
 )`.trim();
 
-  // 直近の IN を取りやすいように timestamp で降順ソート（文字列でも概ね近い順）
   const page = await withRetry(() =>
     base(TABLE_LOGS)
       .select({
         filterByFormula: filter,
         sort: [{ field: 'timestamp', direction: 'desc' }],
-        maxRecords: 50, // 十分に小さく・十分に多い範囲を取得
+        maxRecords: 100,
       })
       .firstPage(),
   );
+  return { candidates: page ?? [] };
+}
 
-  // Node 側で厳密に比較
-  let best: Airtable.Record<FieldSet> | null = null;
-  let bestTs = -Infinity;
-  for (const rec of page) {
-    const n = normalizeLog(rec);
-    if (!n.ts) continue;
-    const t = n.ts.getTime();
-    if (t < out.ts.getTime() && t > bestTs) {
-      best = rec;
-      bestTs = t;
-    }
-  }
-  return best;
+function isSameLocalDay(a: Date, b: Date) {
+  const aj = new Date(a.getTime() + TZ_OFFSET);
+  const bj = new Date(b.getTime() + TZ_OFFSET);
+  return (
+    aj.getUTCFullYear() === bj.getUTCFullYear() &&
+    aj.getUTCMonth() === bj.getUTCMonth() &&
+    aj.getUTCDate() === bj.getUTCDate()
+  );
 }
 
 async function findExistingSession(args: {

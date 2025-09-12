@@ -16,12 +16,18 @@ export type StampRequest = {
 export function validateStampRequest(
   data: unknown,
 ): { success: true; data: StampRequest } | { success: false; hint: string } {
-  const body = data as Partial<StampRequest>;
+  const body = data as Partial<StampRequest> & { lng?: number };
+  const lon =
+    typeof body.lon === 'number'
+      ? body.lon
+      : typeof body.lng === 'number'
+        ? body.lng
+        : undefined;
   if (
     typeof body.machineId !== 'string' ||
     typeof body.workDescription !== 'string' ||
     typeof body.lat !== 'number' ||
-    typeof body.lon !== 'number' ||
+    typeof lon !== 'number' ||
     (body.accuracy !== undefined && typeof body.accuracy !== 'number') ||
     (body.positionTimestamp !== undefined && typeof body.positionTimestamp !== 'number') ||
     (body.distanceToSite !== undefined && typeof body.distanceToSite !== 'number') ||
@@ -39,5 +45,5 @@ export function validateStampRequest(
       hint: 'machineId, workDescription, lat, lon, type are required',
     };
   }
-  return { success: true, data: body as StampRequest };
+  return { success: true, data: { ...body, lon } as StampRequest };
 }

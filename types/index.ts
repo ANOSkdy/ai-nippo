@@ -54,7 +54,8 @@ export interface LogFields extends FieldSet {
 export type StampPayload = {
   siteId: string;
   lat: number;
-  lon: number;
+  lon?: number;
+  lng?: number;
   accuracy?: number;
   positionTimestamp?: number;
   distanceToSite?: number;

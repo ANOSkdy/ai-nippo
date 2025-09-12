@@ -69,18 +69,23 @@ export async function POST(req: NextRequest) {
 
     const activeSites = await sitesTable.select({ filterByFormula: '{active} = 1' }).all();
     const nearestSite = findNearestSite(lat, lon, activeSites);
-    const distanceToSite = nearestSite
+    const rawDistance = nearestSite
       ? distanceMeters(lat, lon, nearestSite.fields.lat, nearestSite.fields.lon)
       : Number.POSITIVE_INFINITY;
+    const distanceToSite = Number.isFinite(rawDistance) ? rawDistance : undefined;
     const threshold = decisionThreshold ?? 300;
     const fresh =
       typeof positionTimestamp === 'number'
         ? Date.now() - positionTimestamp <= 30_000
         : false;
     const accurate = typeof accuracy === 'number' ? accuracy <= 100 : false;
-    const within = distanceToSite <= threshold;
+    const within = nearestSite ? rawDistance <= threshold : false;
     const needsReview =
-      clientDecision === 'override' || !fresh || !accurate || !within;
+      clientDecision === 'override' ||
+      !fresh ||
+      !accurate ||
+      !within ||
+      !nearestSite;
 
     const now = new Date();
     const timestamp = now.toISOString();

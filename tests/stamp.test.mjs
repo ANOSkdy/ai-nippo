@@ -18,6 +18,17 @@ test('validateStampRequest succeeds on valid data', () => {
   assert.strictEqual(result.success, true);
 });
 
+test('validateStampRequest accepts lng alias', () => {
+  const result = validateStampRequest({
+    machineId: '1',
+    workDescription: 'test',
+    lat: 0,
+    lng: 0,
+    type: 'IN',
+  });
+  assert.strictEqual(result.success, true);
+});
+
 test('validateStampRequest fails on invalid type', () => {
   const result = validateStampRequest({
     machineId: '1',

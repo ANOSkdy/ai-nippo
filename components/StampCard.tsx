@@ -145,8 +145,12 @@ export default function StampCard({
           }),
         });
         if (!response.ok) {
-          const res = await response.json();
-          throw new Error(res.message || `サーバーエラー: ${response.statusText}`);
+          let msg = `サーバーエラー: ${response.statusText}`;
+          try {
+            const res = await response.json();
+            msg = res.reason || res.error || res.message || msg;
+          } catch {}
+          throw new Error(msg);
         }
         setError('');
         if (type === 'IN') {
@@ -222,8 +226,12 @@ export default function StampCard({
         }),
       });
       if (!response.ok) {
-        const res = await response.json();
-        throw new Error(res.message || `サーバーエラー: ${response.statusText}`);
+        let msg = `サーバーエラー: ${response.statusText}`;
+        try {
+          const res = await response.json();
+          msg = res.reason || res.error || res.message || msg;
+        } catch {}
+        throw new Error(msg);
       }
       setError('');
       if (type === 'IN') {

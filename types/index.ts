@@ -42,11 +42,14 @@ export interface LogFields extends FieldSet {
   positionTimestamp?: number;
   distanceToSite?: number;
   decisionThreshold?: number;
+  sessionId?: string;
   serverDecision?: 'accepted' | 'needs_review';
   status?: 'accepted' | 'needs_review' | 'rejected';
   siteName?: string;
   workDescription?: string;
   type: 'IN' | 'OUT';
+  syncedAt?: string;
+  airtableRecordId?: string;
 }
 
 export type StampPayload = {

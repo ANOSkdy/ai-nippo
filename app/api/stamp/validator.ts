@@ -1,40 +1,61 @@
-export type StampRequest = {
+export type StartRequest = {
   machineId: string;
   workDescription: string;
-  lat: number;
-  lon: number;
+  type: 'IN' | 'OUT';
+  lat?: number;
+  lon?: number;
+  lng?: number;
   accuracy?: number;
   positionTimestamp?: number;
-  distanceToSite?: number;
-  decisionThreshold?: number;
-  clientDecision?: 'auto' | 'blocked';
-  siteId?: string;
-  type: 'IN' | 'OUT';
 };
 
-export function validateStampRequest(
+export type GeoUpdateRequest = {
+  sessionId: string;
+  lat: number;
+  lon?: number;
+  lng?: number;
+  accuracy?: number;
+  positionTimestamp?: number;
+};
+
+function isNumber(value: unknown): value is number {
+  return typeof value === 'number' && !Number.isNaN(value);
+}
+
+export function validateStartRequest(
   data: unknown,
-): { success: true; data: StampRequest } | { success: false; hint: string } {
-  const body = data as Partial<StampRequest>;
+): { success: true; data: StartRequest } | { success: false; hint: string } {
+  const body = data as Partial<StartRequest>;
   if (
     typeof body.machineId !== 'string' ||
     typeof body.workDescription !== 'string' ||
-    typeof body.lat !== 'number' ||
-    typeof body.lon !== 'number' ||
-    (body.accuracy !== undefined && typeof body.accuracy !== 'number') ||
-    (body.positionTimestamp !== undefined && typeof body.positionTimestamp !== 'number') ||
-    (body.distanceToSite !== undefined && typeof body.distanceToSite !== 'number') ||
-    (body.decisionThreshold !== undefined && typeof body.decisionThreshold !== 'number') ||
-    (body.clientDecision !== undefined &&
-      body.clientDecision !== 'auto' &&
-      body.clientDecision !== 'blocked') ||
-    (body.siteId !== undefined && typeof body.siteId !== 'string') ||
-    (body.type !== 'IN' && body.type !== 'OUT')
+    (body.type !== 'IN' && body.type !== 'OUT') ||
+    (body.lat !== undefined && !isNumber(body.lat)) ||
+    (body.lon !== undefined && !isNumber(body.lon)) ||
+    (body.lng !== undefined && !isNumber(body.lng)) ||
+    (body.accuracy !== undefined && !isNumber(body.accuracy)) ||
+    (body.positionTimestamp !== undefined && !isNumber(body.positionTimestamp))
   ) {
-    return {
-      success: false,
-      hint: 'machineId, workDescription, lat, lon, type are required',
-    };
+    return { success: false, hint: 'machineId, workDescription, type are required' };
   }
-  return { success: true, data: body as StampRequest };
+  return { success: true, data: body as StartRequest };
 }
+
+export function validateGeoUpdateRequest(
+  data: unknown,
+): { success: true; data: GeoUpdateRequest } | { success: false; hint: string } {
+  const body = data as Partial<GeoUpdateRequest>;
+  if (
+    typeof body.sessionId !== 'string' ||
+    !isNumber(body.lat) ||
+    (body.lon === undefined && body.lng === undefined) ||
+    (body.lon !== undefined && !isNumber(body.lon)) ||
+    (body.lng !== undefined && !isNumber(body.lng)) ||
+    (body.accuracy !== undefined && !isNumber(body.accuracy)) ||
+    (body.positionTimestamp !== undefined && !isNumber(body.positionTimestamp))
+  ) {
+    return { success: false, hint: 'sessionId, lat, lon|lng are required' };
+  }
+  return { success: true, data: body as GeoUpdateRequest };
+}
+

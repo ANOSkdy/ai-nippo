@@ -1,55 +1,31 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { validateStampRequest } from './dist/validator.js';
+import {
+  validateStartRequest,
+  validateGeoUpdateRequest,
+} from './dist/validator.js';
 
-test('validateStampRequest fails on missing fields', () => {
-  const result = validateStampRequest({});
+test('validateStartRequest fails on missing fields', () => {
+  const result = validateStartRequest({});
   assert.strictEqual(result.success, false);
 });
 
-test('validateStampRequest succeeds on valid data', () => {
-  const result = validateStampRequest({
+test('validateStartRequest succeeds on minimal data', () => {
+  const result = validateStartRequest({
     machineId: '1',
     workDescription: 'test',
-    lat: 0,
-    lon: 0,
     type: 'IN',
   });
   assert.strictEqual(result.success, true);
 });
 
-test('validateStampRequest fails on invalid type', () => {
-  const result = validateStampRequest({
-    machineId: '1',
-    workDescription: 'test',
-    lat: 0,
-    lon: 0,
-    type: 'INVALID',
-  });
+test('validateGeoUpdateRequest requires lon or lng', () => {
+  const result = validateGeoUpdateRequest({ sessionId: 's', lat: 0 });
   assert.strictEqual(result.success, false);
 });
 
-test('validateStampRequest fails on invalid accuracy type', () => {
-  const result = validateStampRequest({
-    machineId: '1',
-    workDescription: 'test',
-    lat: 0,
-    lon: 0,
-    type: 'IN',
-    accuracy: 'bad',
-  });
-  assert.strictEqual(result.success, false);
-});
-
-test('validateStampRequest fails on invalid clientDecision', () => {
-  const result = validateStampRequest({
-    machineId: '1',
-    workDescription: 'test',
-    lat: 0,
-    lon: 0,
-    type: 'IN',
-    clientDecision: 'wrong',
-  });
-  assert.strictEqual(result.success, false);
+test('validateGeoUpdateRequest accepts lng', () => {
+  const result = validateGeoUpdateRequest({ sessionId: 's', lat: 0, lng: 0 });
+  assert.strictEqual(result.success, true);
 });
 

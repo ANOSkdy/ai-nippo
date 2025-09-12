@@ -2,11 +2,11 @@ import { SiteFields } from '@/types';
 import { Record } from 'airtable';
 
 // 2点間の距離を計算するハバーサイン公式
-const haversineDistance = (
+export const distanceMeters = (
   lat1: number,
   lon1: number,
   lat2: number,
-  lon2: number
+  lon2: number,
 ) => {
   const R = 6371e3; // 地球の半径 (メートル)
   const φ1 = (lat1 * Math.PI) / 180;
@@ -36,7 +36,7 @@ export const findNearestSite = (
   let minDistance = Infinity;
 
   for (const site of sites) {
-    const distance = haversineDistance(lat, lon, site.fields.lat, site.fields.lon);
+    const distance = distanceMeters(lat, lon, site.fields.lat, site.fields.lon);
     if (distance < minDistance) {
       minDistance = distance;
       nearestSite = site;

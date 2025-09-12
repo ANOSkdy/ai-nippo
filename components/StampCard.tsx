@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { SiteFields, WorkTypeFields } from '@/types';
 import { Record } from 'airtable';
 import LogoutButton from './LogoutButton'; // LogoutButtonをインポート
-import { findNearestSite } from '@/lib/geo';
+import { findNearestSite, distanceMeters } from '@/lib/geo';
 
 type StampCardProps = {
   initialStampType: 'IN' | 'OUT';
@@ -111,26 +111,6 @@ export default function StampCard({
       }, GEO_TIMEOUT_MS + 1000);
     });
 
-  const haversineDistance = (
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number,
-  ) => {
-    const R = 6371e3;
-    const toRad = (deg: number) => (deg * Math.PI) / 180;
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRad(lat1)) *
-        Math.cos(toRad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
   const handleStamp = async (type: 'IN' | 'OUT', workDescription: string) => {
     setIsLoading(true);
     setError('');
@@ -138,7 +118,7 @@ export default function StampCard({
       const pos = await getFreshPosition();
       const nearestSite = findNearestSite(pos.lat, pos.lng, sites);
       const distanceToSite = nearestSite
-        ? haversineDistance(
+        ? distanceMeters(
             pos.lat,
             pos.lng,
             nearestSite.fields.lat,
@@ -215,7 +195,7 @@ export default function StampCard({
       const ts = pos?.ts ?? Date.now();
       const nearestSite = findNearestSite(lat, lon, sites);
       const distanceToSite = nearestSite
-        ? haversineDistance(
+        ? distanceMeters(
             lat,
             lon,
             nearestSite.fields.lat,

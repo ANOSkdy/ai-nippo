@@ -42,8 +42,10 @@ export interface LogFields extends FieldSet {
   positionTimestamp?: number;
   distanceToSite?: number;
   decisionThreshold?: number;
+  clientDecision?: 'auto' | 'blocked' | 'override';
   serverDecision?: 'accepted' | 'needs_review';
   status?: 'accepted' | 'needs_review' | 'rejected';
+  overrideReason?: string;
   siteName?: string;
   workDescription?: string;
   type: 'IN' | 'OUT';
@@ -57,7 +59,8 @@ export type StampPayload = {
   positionTimestamp?: number;
   distanceToSite?: number;
   decisionThreshold?: number;
-  clientDecision?: 'auto' | 'blocked';
+  clientDecision?: 'auto' | 'blocked' | 'override';
+  overrideReason?: string;
 };
 
 export type StampRecord = {
@@ -69,7 +72,9 @@ export type StampRecord = {
   positionTimestamp?: number;
   distanceToSite?: number;
   decisionThreshold?: number;
+  clientDecision?: 'auto' | 'blocked' | 'override';
   serverDecision?: 'accepted' | 'needs_review';
   status?: 'accepted' | 'needs_review' | 'rejected';
+  overrideReason?: string;
   createdAt: string;
 };

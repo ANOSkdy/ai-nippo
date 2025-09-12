@@ -7,7 +7,8 @@ export type StampRequest = {
   positionTimestamp?: number;
   distanceToSite?: number;
   decisionThreshold?: number;
-  clientDecision?: 'auto' | 'blocked';
+  clientDecision?: 'auto' | 'blocked' | 'override';
+  overrideReason?: string;
   siteId?: string;
   type: 'IN' | 'OUT';
 };
@@ -27,7 +28,9 @@ export function validateStampRequest(
     (body.decisionThreshold !== undefined && typeof body.decisionThreshold !== 'number') ||
     (body.clientDecision !== undefined &&
       body.clientDecision !== 'auto' &&
-      body.clientDecision !== 'blocked') ||
+      body.clientDecision !== 'blocked' &&
+      body.clientDecision !== 'override') ||
+    (body.overrideReason !== undefined && typeof body.overrideReason !== 'string') ||
     (body.siteId !== undefined && typeof body.siteId !== 'string') ||
     (body.type !== 'IN' && body.type !== 'OUT')
   ) {

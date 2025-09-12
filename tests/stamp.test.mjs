@@ -53,3 +53,16 @@ test('validateStampRequest fails on invalid clientDecision', () => {
   assert.strictEqual(result.success, false);
 });
 
+test('validateStampRequest succeeds with override', () => {
+  const result = validateStampRequest({
+    machineId: '1',
+    workDescription: 'test',
+    lat: 0,
+    lon: 0,
+    type: 'IN',
+    clientDecision: 'override',
+    overrideReason: 'GPS issue',
+  });
+  assert.strictEqual(result.success, true);
+});
+

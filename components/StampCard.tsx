@@ -63,107 +63,201 @@ export default function StampCard({
       .catch(() => setError('拠点マスタの取得に失敗しました。'));
   }, []);
 
+  type Pos = { lat: number; lng: number; accuracy: number; ts: number };
+  const GEO_TIMEOUT_MS = 15000;
+
+  const getFreshPosition = () =>
+    new Promise<Pos>((resolve, reject) => {
+      const opts: PositionOptions = {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: GEO_TIMEOUT_MS,
+      };
+      let best: Pos | null = null;
+      const started = Date.now();
+      const id = navigator.geolocation.watchPosition(
+        (p) => {
+          const cur: Pos = {
+            lat: p.coords.latitude,
+            lng: p.coords.longitude,
+            accuracy: p.coords.accuracy ?? 9999,
+            ts: p.timestamp,
+          };
+          if (
+            !best ||
+            cur.accuracy < best.accuracy ||
+            (cur.accuracy === best.accuracy && cur.ts > best.ts)
+          )
+            best = cur;
+          const good = cur.accuracy <= 50;
+          const expired = Date.now() - started > GEO_TIMEOUT_MS;
+          if (good || expired) {
+            navigator.geolocation.clearWatch(id);
+            resolve(best ?? cur);
+          }
+        },
+        (err) => {
+          navigator.geolocation.clearWatch(id);
+          reject(err);
+        },
+        opts,
+      );
+      setTimeout(() => {
+        try {
+          navigator.geolocation.clearWatch(id);
+        } catch {}
+        if (best) resolve(best);
+        else reject(new Error('Geolocation timeout'));
+      }, GEO_TIMEOUT_MS + 1000);
+    });
+
+  const haversineDistance = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ) => {
+    const R = 6371e3;
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
   const handleStamp = async (type: 'IN' | 'OUT', workDescription: string) => {
     setIsLoading(true);
     setError('');
-    const opts: PositionOptions = {
-      enableHighAccuracy: true,
-      maximumAge: 0,
-      timeout: 10000,
+    const tryAutoStampOnce = async (label: 'first' | 'retry') => {
+      const pos = await getFreshPosition();
+      const nearestSite = findNearestSite(pos.lat, pos.lng, sites);
+      const distanceToSite = nearestSite
+        ? haversineDistance(
+            pos.lat,
+            pos.lng,
+            nearestSite.fields.lat,
+            nearestSite.fields.lon,
+          )
+        : Number.POSITIVE_INFINITY;
+      const decisionThreshold = Math.max(150, (pos.accuracy || 0) * 2);
+      if (nearestSite && distanceToSite <= decisionThreshold) {
+        const response = await fetch('/api/stamp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            machineId,
+            workDescription,
+            lat: pos.lat,
+            lon: pos.lng,
+            accuracy: pos.accuracy,
+            type,
+            positionTimestamp: pos.ts,
+            distanceToSite,
+            decisionThreshold,
+            clientDecision: 'auto',
+            siteId: nearestSite.fields.siteId,
+          }),
+        });
+        if (!response.ok) {
+          const res = await response.json();
+          throw new Error(res.message || `サーバーエラー: ${response.statusText}`);
+        }
+        setError('');
+        if (type === 'IN') {
+          setStampType('OUT');
+          setLastWorkDescription(workDescription);
+        } else {
+          setStampType('COMPLETED');
+        }
+        return true;
+      }
+      if (label === 'first') {
+        setError('最新の位置情報を取得しています…');
+      }
+      return false;
     };
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        const positionTimestamp = position.timestamp;
-        const ageMs = Date.now() - positionTimestamp;
-        if (ageMs > 10_000) {
-          setError('位置情報が古いため打刻を中断しました。');
-          setIsLoading(false);
-          return;
-        }
-        if (typeof accuracy === 'number' && accuracy > 100) {
-          setError('位置精度が不十分（>100m）です。');
-          setIsLoading(false);
-          return;
-        }
-
-        const nearestSite = findNearestSite(latitude, longitude, sites);
-        const decisionThreshold = 300;
-        const haversineDistance = (
-          lat1: number,
-          lon1: number,
-          lat2: number,
-          lon2: number,
-        ) => {
-          const R = 6371e3;
-          const toRad = (deg: number) => (deg * Math.PI) / 180;
-          const dLat = toRad(lat2 - lat1);
-          const dLon = toRad(lon2 - lon1);
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(lat1)) *
-              Math.cos(toRad(lat2)) *
-              Math.sin(dLon / 2) *
-              Math.sin(dLon / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          return R * c;
-        };
-        const distanceToSite = nearestSite
-          ? haversineDistance(
-              latitude,
-              longitude,
-              nearestSite.fields.lat,
-              nearestSite.fields.lon,
-            )
-          : Number.POSITIVE_INFINITY;
-        if (distanceToSite > decisionThreshold) {
-          setError('現在地と登録拠点の距離が大きいため打刻を中断しました。');
-          setIsLoading(false);
-          return;
-        }
-
-        try {
-          const response = await fetch('/api/stamp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              machineId,
-              workDescription,
-              lat: latitude,
-              lon: longitude,
-              accuracy,
-              type,
-              positionTimestamp,
-              distanceToSite,
-              decisionThreshold,
-              clientDecision: 'auto',
-              siteId: nearestSite?.fields.siteId,
-            }),
-          });
-          if (!response.ok) {
-            const res = await response.json();
-            throw new Error(res.message || `サーバーエラー: ${response.statusText}`);
-          }
-          if (type === 'IN') {
-            setStampType('OUT');
-            setLastWorkDescription(workDescription);
-          } else {
-            setStampType('COMPLETED');
-          }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : '通信に失敗しました。';
-          setError(message);
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      (geoError) => {
-        setError(`位置情報の取得に失敗しました: ${geoError.message}`);
+    try {
+      const ok = await tryAutoStampOnce('first');
+      if (ok) {
         setIsLoading(false);
-      },
-      opts,
-    );
+        return;
+      }
+      const ok2 = await tryAutoStampOnce('retry');
+      if (ok2) {
+        setIsLoading(false);
+        return;
+      }
+      const confirmOverride = window.confirm(
+        '現在地が登録拠点から離れています。申告送信しますか？（後レビュー対象）',
+      );
+      if (!confirmOverride) {
+        setIsLoading(false);
+        return;
+      }
+      const reason =
+        window.prompt(
+          '申告理由を入力してください（例: 現地近辺/屋内でGPS誤差）',
+        ) ?? '';
+      let pos: Pos | null = null;
+      try {
+        pos = await getFreshPosition();
+      } catch {}
+      const lat = pos?.lat ?? 0;
+      const lon = pos?.lng ?? 0;
+      const accuracy = pos?.accuracy ?? 9999;
+      const ts = pos?.ts ?? Date.now();
+      const nearestSite = findNearestSite(lat, lon, sites);
+      const distanceToSite = nearestSite
+        ? haversineDistance(
+            lat,
+            lon,
+            nearestSite.fields.lat,
+            nearestSite.fields.lon,
+          )
+        : Number.POSITIVE_INFINITY;
+      const decisionThreshold = Math.max(150, (accuracy || 0) * 2);
+      const response = await fetch('/api/stamp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          machineId,
+          workDescription,
+          lat,
+          lon,
+          accuracy,
+          type,
+          positionTimestamp: ts,
+          distanceToSite,
+          decisionThreshold,
+          clientDecision: 'override',
+          siteId: nearestSite?.fields.siteId,
+          overrideReason: reason,
+        }),
+      });
+      if (!response.ok) {
+        const res = await response.json();
+        throw new Error(res.message || `サーバーエラー: ${response.statusText}`);
+      }
+      setError('');
+      if (type === 'IN') {
+        setStampType('OUT');
+        setLastWorkDescription(workDescription);
+      } else {
+        setStampType('COMPLETED');
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '通信に失敗しました。';
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCheckIn = (e: React.FormEvent<HTMLFormElement>) => {

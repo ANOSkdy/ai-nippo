@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
     type,
     positionTimestamp,
     decisionThreshold,
+    clientDecision,
+    overrideReason,
   } = parsed.data;
 
   try {
@@ -96,7 +98,8 @@ export async function POST(req: NextRequest) {
         : false;
     const accurate = typeof accuracy === 'number' ? accuracy <= 100 : false;
     const within = distanceToSite <= threshold;
-    const needsReview = !fresh || !accurate || !within;
+    const needsReview =
+      clientDecision === 'override' || !fresh || !accurate || !within;
 
     const now = new Date();
     const timestamp = now.toISOString();
@@ -124,8 +127,10 @@ export async function POST(req: NextRequest) {
       siteName: nearestSite?.fields.name ?? '特定不能',
       workDescription,
       type,
+      clientDecision: clientDecision ?? (within ? 'auto' : 'blocked'),
       serverDecision: needsReview ? 'needs_review' : 'accepted',
       status: needsReview ? 'needs_review' : 'accepted',
+      overrideReason: clientDecision === 'override' ? overrideReason ?? '' : undefined,
     };
 
     await logsTable.create([{ fields: dataToCreate }]);

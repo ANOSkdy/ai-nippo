@@ -13,7 +13,7 @@ if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
 }
 
 // Airtableの基本設定を初期化
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
+export const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID
 );
 
@@ -80,3 +80,19 @@ export const getTodayLogs = async (userRecordId: string) => {
     throw error;
   }
 };
+
+type WithRetryFn<T> = (...args: unknown[]) => Promise<T>;
+
+export async function withRetry<T>(fn: WithRetryFn<T>, attempts = 5): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      const wait = Math.min(1000 * 2 ** i, 8000);
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+  throw lastErr;
+}

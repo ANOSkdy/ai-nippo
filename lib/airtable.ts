@@ -83,30 +83,39 @@ export const getTodayLogs = async (userRecordId: string) => {
 
 type WithRetryFn<T> = (...args: unknown[]) => Promise<T>;
 
-export async function withRetry<T>(fn: WithRetryFn<T>, attempts = 5): Promise<T> {
-  let lastErr: unknown;
+export async function withRetry<T>(
+  fn: WithRetryFn<T>,
+  attempts = 5,
+): Promise<T> {
+  let last: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
       return await fn();
-    } catch (e) {
-      lastErr = e;
+    } catch (e: unknown) {
+      last = e;
       const wait = Math.min(1000 * 2 ** i, 8000);
       if (i < attempts - 1) await new Promise((r) => setTimeout(r, wait));
     }
   }
-  throw lastErr;
+  throw last;
 }
 
 export function table(name: string) {
   const candidates = [name, name.toUpperCase(), name.toLowerCase()];
-  let idx = 0;
+  let use = 0;
   return {
     select: (opt: Parameters<Table<FieldSet>['select']>[0]) =>
-      base(candidates[idx]).select(opt),
-    update: (records: unknown, opt?: { typecast?: boolean }) =>
-      base(candidates[idx]).update(records as never, opt),
+      (base as unknown as (n: string) => Table<FieldSet>)(candidates[use]).select(opt),
+    update: (
+      records: Parameters<Table<FieldSet>['update']>[0],
+      opt?: Parameters<Table<FieldSet>['update']>[1],
+    ) =>
+      (base as unknown as (n: string) => Table<FieldSet>)(candidates[use]).update(
+        records,
+        opt,
+      ),
     _use: (i: number) => {
-      idx = i;
+      use = i;
     },
   };
 }

@@ -12,5 +12,4 @@ export type LogRow = {
 
 export type SearchResponse = {
   items: LogRow[];
-  nextPageToken?: string;
 };

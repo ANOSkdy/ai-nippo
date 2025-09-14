@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { isAdminUIEnabled } from '@/lib/featureFlags';
 import { reflectBodySchema } from '@/lib/validation/admin';
 import { table, withRetry } from '@/lib/airtable';
-import type { FieldSet } from 'airtable';
+import type { FieldSet, UpdateOptions, Records } from 'airtable';
 
 const LOGS_TABLE = 'Logs';
 type AllowedField = 'workDescription' | 'type';
@@ -43,8 +43,21 @@ export async function POST(req: Request) {
     chunks.push(updates.slice(i, i + 10));
 
   try {
+    const opts: UpdateOptions = { typecast: true };
     for (const c of chunks) {
-      await withRetry(() => table(LOGS_TABLE).update(c, { typecast: true }));
+      await withRetry<Records<FieldSet>>(
+        () =>
+          new Promise((resolve, reject) => {
+            table(LOGS_TABLE).update(
+              c,
+              opts,
+              (err, records) => {
+                if (err) return reject(err);
+                resolve(records as Records<FieldSet>);
+              },
+            );
+          }),
+      );
     }
     console.info('[admin/reflect]', {
       by:

@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [q, setQ] = useState<SearchParams>({ pageSize: 25 });
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [edit, setEdit] = useState<{ workDescription?: string; type?: 'IN' | 'OUT' }>({});
 
@@ -41,13 +42,18 @@ export default function AdminPage() {
 
   const search = async () => {
     setLoading(true);
+    setError(null);
     const params = new URLSearchParams();
     Object.entries(q).forEach(([k, v]) => {
       if (v !== undefined && v !== '' && v !== null) params.set(k, String(v));
     });
     const r = await fetch(`/api/admin/search?${params.toString()}`);
     setLoading(false);
-    if (!r.ok) return alert('検索に失敗しました');
+    if (!r.ok) {
+      setRows([]);
+      setError('検索に失敗しました');
+      return;
+    }
     const data = await r.json();
     setRows(data.items ?? []);
     setSelected({});
@@ -72,7 +78,10 @@ export default function AdminPage() {
     await search();
   };
 
-  useEffect(() => {}, []);
+  useEffect(() => {
+    void search();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!enabled) return null;
   if (!isAdmin)
@@ -81,6 +90,9 @@ export default function AdminPage() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-semibold">管理UI（検索 & 反映）</h1>
+      <p className="text-sm text-gray-500">
+        初期表示は直近7日分の最新ログを表示します。必要に応じて検索条件を絞り込んでください。
+      </p>
       <section className="grid grid-cols-1 md:grid-cols-5 gap-3">
         <label className="sr-only" htmlFor="userId">userId</label>
         <input
@@ -137,8 +149,22 @@ export default function AdminPage() {
         >
           検索
         </button>
+        <button
+          onClick={() => {
+            setQ({ pageSize: 25 });
+            void search();
+          }}
+          className="px-3 py-2 rounded border"
+        >
+          条件リセット
+        </button>
         <span className="text-sm text-gray-500">{loading ? '検索中…' : ''}</span>
       </div>
+      {error && (
+        <div className="text-sm text-red-600" role="alert">
+          {error}
+        </div>
+      )}
 
       <section className="overflow-x-auto">
         <table className="min-w-full text-sm border" role="table">
@@ -186,10 +212,10 @@ export default function AdminPage() {
                 <td className="p-2 border">{r.workDescription}</td>
               </tr>
             ))}
-            {rows.length === 0 && (
+            {rows.length === 0 && !loading && !error && (
               <tr>
-                <td className="p-4 text-gray-500" colSpan={7}>
-                  結果なし
+                <td className="p-6 text-gray-500" colSpan={7}>
+                  該当データが見つかりませんでした。日付範囲やtypeを外して再検索してください。
                 </td>
               </tr>
             )}

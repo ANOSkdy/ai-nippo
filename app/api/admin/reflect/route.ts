@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { isAdminUIEnabled } from '@/lib/featureFlags';
 import { parseReflectBody } from '@/lib/validation/admin';
-import { logsTable, withRetry } from '@/lib/airtable';
+import { table, withRetry } from '@/lib/airtable';
 import { LogFields } from '@/types';
+
+const LOGS_TABLE = 'Logs';
 
 export const runtime = 'nodejs';
 
@@ -56,7 +58,7 @@ export async function POST(req: Request) {
   try {
     for (const chunk of chunks) {
       await withRetry(() =>
-        logsTable.update(
+        table(LOGS_TABLE).update(
           chunk as Array<{ id: string; fields: Partial<LogFields> }>,
           { typecast: true }
         )

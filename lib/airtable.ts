@@ -96,3 +96,17 @@ export async function withRetry<T>(fn: WithRetryFn<T>, attempts = 5): Promise<T>
   }
   throw lastErr;
 }
+
+export function table(name: string) {
+  const candidates = [name, name.toUpperCase(), name.toLowerCase()];
+  let idx = 0;
+  return {
+    select: (opt: Parameters<Table<FieldSet>['select']>[0]) =>
+      base(candidates[idx]).select(opt),
+    update: (records: unknown, opt?: { typecast?: boolean }) =>
+      base(candidates[idx]).update(records as never, opt),
+    _use: (i: number) => {
+      idx = i;
+    },
+  };
+}

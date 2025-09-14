@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { isAdminUIEnabled } from '@/lib/featureFlags';
 import { parseSearchQuery } from '@/lib/validation/admin';
-import { logsTable, withRetry } from '@/lib/airtable';
+import { table, withRetry } from '@/lib/airtable';
 import type { SearchResponse } from '@/types/admin';
+
+const LOGS_TABLE = 'Logs';
 
 export const runtime = 'nodejs';
 
@@ -37,12 +39,25 @@ export async function GET(req: Request) {
   }
   const q = parsed.data;
 
-  const filterByFormula = buildFilterFormula(q);
+  let filterByFormula = buildFilterFormula(q);
   const pageSize = q.pageSize ?? 25;
+  if (!filterByFormula) {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    const sevenDaysAgo = d.toISOString().slice(0, 10);
+    filterByFormula = `IS_AFTER({date}, '${sevenDaysAgo}')`;
+  }
 
   try {
     const res: SearchResponse = await withRetry(async () => {
-        const sel = logsTable.select({ filterByFormula, pageSize });
+        const sel = table(LOGS_TABLE).select({
+          filterByFormula,
+          pageSize,
+          sort: [
+            { field: 'date', direction: 'desc' },
+            { field: 'timestamp', direction: 'desc' },
+          ],
+        });
         const items: SearchResponse['items'] = [];
       await new Promise<void>((resolve, reject) => {
         sel.eachPage(

@@ -3,9 +3,11 @@ import { auth } from '@/lib/auth';
 import { isAdminUIEnabled } from '@/lib/featureFlags';
 import { reflectBodySchema } from '@/lib/validation/admin';
 import { table, withRetry } from '@/lib/airtable';
+import type { FieldSet } from 'airtable';
 
 const LOGS_TABLE = 'Logs';
-const ALLOWED = new Set(['workDescription', 'type']);
+type AllowedField = 'workDescription' | 'type';
+const ALLOWED = new Set<AllowedField>(['workDescription', 'type']);
 
 export const runtime = 'nodejs';
 
@@ -24,13 +26,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const updates = parsed.data.updates.map((u) => {
-    const fields: Record<string, unknown> = {};
-    Object.entries(u.fields).forEach(([k, v]) => {
-      if (ALLOWED.has(k)) fields[k] = v;
+  const updates: Array<{ id: string; fields: Partial<FieldSet> }> =
+    parsed.data.updates.map((u) => {
+      const fields: Partial<FieldSet> = {};
+      for (const [k, v] of Object.entries(u.fields)) {
+        const key = k as AllowedField;
+        if (ALLOWED.has(key)) {
+          fields[key] = v as FieldSet[AllowedField];
+        }
+      }
+      return { id: u.id, fields };
     });
-    return { id: u.id, fields };
-  });
 
   const chunks: typeof updates[] = [];
   for (let i = 0; i < updates.length; i += 10)

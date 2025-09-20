@@ -6,6 +6,8 @@ import { SiteFields, WorkTypeFields } from '@/types';
 import { Record } from 'airtable';
 import LogoutButton from './LogoutButton'; // LogoutButtonをインポート
 import { extractGeometry, findNearestSite, pointInGeometry } from '@/lib/geo';
+import ErrorBanner from '@/src/components/ui/ErrorBanner';
+import { resolveErrorDictionary } from '@/src/i18n/errors';
 
 type StampCardProps = {
   initialStampType: 'IN' | 'OUT';
@@ -208,19 +210,30 @@ export default function StampCard({
           setStampType('COMPLETED');
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : '通信に失敗しました。';
+        let message = err instanceof Error ? err.message : '通信に失敗しました。';
+        if (message.includes('Failed to fetch')) {
+          const dict = resolveErrorDictionary('APP-503-NETWORK');
+          message = dict?.description ?? 'ネットワークに接続できません。';
+        }
         setError(message);
       } finally {
         setIsLoading(false);
       }
     } catch (geoError) {
-      const message =
-        geoError instanceof Error
-          ? geoError.message
-          : typeof geoError === 'string'
-            ? geoError
-            : '不明なエラーが発生しました。';
-      setError(`位置情報の取得に失敗しました: ${message}`);
+      let message = '位置情報の取得に失敗しました。';
+      const geoCode = typeof (geoError as { code?: number })?.code === 'number'
+        ? (geoError as { code: number }).code
+        : undefined;
+      if (geoCode === 1) {
+        const dict = resolveErrorDictionary('APP-403-LOCATION_DENIED');
+        message = dict?.description ?? '位置情報の利用が拒否されました。';
+      } else if (geoCode === 3) {
+        const dict = resolveErrorDictionary('APP-408-GEO_TIMEOUT');
+        message = dict?.description ?? '位置情報の取得に時間がかかっています。';
+      } else if (geoError instanceof Error) {
+        message = geoError.message;
+      }
+      setError(message);
       setIsLoading(false);
     }
   };
@@ -232,15 +245,36 @@ export default function StampCard({
   
   const handleCheckOut = () => {
     if (!lastWorkDescription) {
-      alert('前回の作業内容が見つかりません。');
+      setError('前回の作業内容が見つかりません。管理者へご確認ください。');
       return;
     }
     handleStamp('OUT', lastWorkDescription);
   };
 
   if (isLoading) return <CardState title="処理中..." message="サーバーと通信しています。" />;
-  if (error) return <CardState title="エラーが発生しました" message={error} />;
-  if (!machineId) return <CardState title="無効なアクセス" message="NFCタグから機械IDを読み取れませんでした。" />;
+  if (!machineId)
+    return (
+      <div className="flex min-h-[calc(100svh-56px)] w-full items-center justify-center p-4">
+        <ErrorBanner
+          title="無効なアクセスです"
+          description="NFCタグから機械IDを読み取れませんでした。タグを再度読み取ってください。"
+          severity="warning"
+          dismissible={false}
+          onRetry={() => window.location.reload()}
+        />
+      </div>
+    );
+  if (error)
+    return (
+      <div className="flex min-h-[calc(100svh-56px)] w-full items-center justify-center p-4">
+        <ErrorBanner
+          title="エラーが発生しました"
+          description={error}
+          severity="error"
+          onRetry={() => window.location.reload()}
+        />
+      </div>
+    );
   if (stampType === 'COMPLETED')
     return (
       <div className="flex min-h-[calc(100svh-56px)] w-full items-center justify-center p-4">
@@ -252,14 +286,15 @@ export default function StampCard({
 
   return (
     <div className="flex min-h-[calc(100svh-56px)] w-full flex-col items-center gap-6 p-4 pb-[calc(env(safe-area-inset-bottom)+12px)]">
-        {warning && (
-        <div
-          role="alert"
-          className="w-[90vw] max-w-[560px] rounded bg-yellow-50 p-2 text-sm text-yellow-800"
-        >
-          {warning}
-        </div>
-      )}
+      {warning ? (
+        <ErrorBanner
+          severity="warning"
+          title="注意が必要です"
+          description={warning}
+          dismissible={false}
+          onRetry={() => window.location.reload()}
+        />
+      ) : null}
       <div className="card w-[90vw] max-w-[560px] mx-auto">
         <div className="space-y-2 text-center">
           <p className="text-lg font-semibold text-gray-800">{userName} さん</p>

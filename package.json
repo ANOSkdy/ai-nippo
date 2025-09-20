@@ -6,8 +6,10 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint",
-    "test": "tsc app/api/stamp/validator.ts --module nodenext --target es2020 --moduleResolution nodenext --esModuleInterop --outDir tests/dist && node --test tests/*.test.mjs"
+    "lint": "eslint .",
+    "test": "pnpm test:unit",
+    "test:unit": "tsc app/api/stamp/validator.ts src/lib/errors.ts src/lib/logger.ts src/i18n/errors.ts --module nodenext --target es2020 --moduleResolution nodenext --esModuleInterop --outDir tests/dist && node --test tests/*.test.mjs __tests__/errors/*.test.mjs",
+    "test:e2e": "node --test e2e/*.test.mjs"
   },
   "dependencies": {
     "airtable": "^0.12.2",

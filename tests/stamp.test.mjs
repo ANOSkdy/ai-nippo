@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { validateStampRequest } from './dist/validator.js';
+import { validateStampRequest } from './dist/app/api/stamp/validator.js';
 
 test('validateStampRequest fails on missing fields', () => {
   const result = validateStampRequest({});

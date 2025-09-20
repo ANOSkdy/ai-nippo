@@ -6,10 +6,57 @@ import {
   WorkTypeFields,
   LogFields,
 } from '@/types';
+import { AppError } from '@/src/lib/errors';
+import { logger } from '@/src/lib/logger';
+
+const MAX_RETRY = 3;
+const INITIAL_DELAY_MS = 500;
+
+async function withAirtableRetry<T>(
+  operation: () => Promise<T>,
+  opts: { action: string; retryCount?: number } = { action: 'unknown' },
+): Promise<T> {
+  const attempt = opts.retryCount ?? 0;
+  try {
+    return await operation();
+  } catch (error) {
+    const statusCode = typeof (error as { statusCode?: unknown })?.statusCode === 'number'
+      ? ((error as { statusCode: number }).statusCode)
+      : undefined;
+    const code = statusCode === 429 ? 'EXT-AIRTABLE-429' : 'EXT-AIRTABLE-500';
+    logger.warn({
+      code,
+      message: `Airtable operation failed (${opts.action})`,
+      context: { attempt, statusCode },
+      error,
+    });
+
+    if (statusCode === 429 && attempt < MAX_RETRY) {
+      const delay = INITIAL_DELAY_MS * 2 ** attempt;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return withAirtableRetry(operation, { action: opts.action, retryCount: attempt + 1 });
+    }
+
+    throw new AppError({
+      code,
+      message: statusCode === 429 ? 'Airtableのレート制限を超えました' : 'Airtableの処理に失敗しました',
+      status: statusCode === 429 ? 429 : 502,
+      hint: statusCode === 429 ? '少し時間をおいてから再試行してください' : '時間をおいて再試行してください',
+      severity: statusCode === 429 ? 'warning' : 'error',
+      cause: error,
+    });
+  }
+}
 
 // 環境変数が設定されていない場合にエラーを投げる
 if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
-  throw new Error('Airtable API Key or Base ID is not defined in .env.local');
+  throw new AppError({
+    code: 'APP-500-CONFIG',
+    status: 500,
+    message: 'Airtableの接続設定が未完了です',
+    hint: '環境変数 AIRTABLE_API_KEY / AIRTABLE_BASE_ID を設定してください',
+    severity: 'error',
+  });
 }
 
 // Airtableの基本設定を初期化
@@ -33,15 +80,24 @@ export const logsTable = getTypedTable<LogFields>('Logs');
 // machineid(URLのパラメータ)を使って機械レコードを1件取得する関数
 export const getMachineById = async (machineId: string) => {
   try {
-    const records = await machinesTable
-      .select({
-        filterByFormula: `{machineid} = '${machineId}'`,
-        maxRecords: 1,
-      })
-      .firstPage();
+    const records = await withAirtableRetry(
+      () =>
+        machinesTable
+          .select({
+            filterByFormula: `{machineid} = '${machineId}'`,
+            maxRecords: 1,
+          })
+          .firstPage(),
+      { action: 'getMachineById' },
+    );
     return records[0] || null;
   } catch (error) {
-    console.error('Error fetching machine by ID:', error);
+    logger.error({
+      code: 'EXT-AIRTABLE-500',
+      message: 'Error fetching machine by ID',
+      context: { machineId },
+      error,
+    });
     throw error;
   }
 };
@@ -60,14 +116,16 @@ export const getTodayLogs = async (userRecordId: string) => {
     .replace(/\//g, '-');
 
   try {
-    const records = await logsTable
-      .select({
-        // まず日付で絞り込む
-        filterByFormula: `{date} = '${todayJST}'`,
-        // 時刻順で並び替え
-        sort: [{ field: 'timestamp', direction: 'asc' }],
-      })
-      .all();
+    const records = await withAirtableRetry(
+      () =>
+        logsTable
+          .select({
+            filterByFormula: `{date} = '${todayJST}'`,
+            sort: [{ field: 'timestamp', direction: 'asc' }],
+          })
+          .all(),
+      { action: 'getTodayLogs' },
+    );
 
     // Airtableのuser(Link to Record)フィールドはレコードIDの配列なので、
     // 取得したレコードから、さらに対象ユーザーのログのみを絞り込む
@@ -76,7 +134,12 @@ export const getTodayLogs = async (userRecordId: string) => {
         record.fields.user && record.fields.user.includes(userRecordId)
     );
   } catch (error) {
-    console.error('Error fetching today logs:', error);
+    logger.error({
+      code: 'EXT-AIRTABLE-500',
+      message: 'Error fetching today logs',
+      context: { userRecordId, todayJST },
+      error,
+    });
     throw error;
   }
 };

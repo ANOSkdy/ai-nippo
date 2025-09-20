@@ -2,39 +2,68 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import {
   logsTable,
-  machinesTable,
   sitesTable,
+  getMachineById,
 } from '@/lib/airtable';
 import { findNearestSiteDetailed } from '@/lib/geo';
 import { LOGS_ALLOWED_FIELDS, filterFields } from '@/lib/airtableSchema';
 import { LogFields } from '@/types';
+import { AppError, toErrorResponse } from '@/src/lib/errors';
+import { logger } from '@/src/lib/logger';
+import { resolveErrorDictionary } from '@/src/i18n/errors';
 import { validateStampRequest } from './validator';
 
 export const runtime = 'nodejs';
 
-function errorResponse(
-  code: string,
-  reason: string,
-  hint: string,
-  status: number,
-) {
-  return NextResponse.json({ ok: false, code, reason, hint }, { status });
-}
-
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
-    return errorResponse(
-      'UNAUTHORIZED',
-      'Authentication required',
-      'Sign in and retry',
-      401,
-    );
+    const error = new AppError({
+      code: 'APP-401-UNAUTHENTICATED',
+      message: '認証が必要です',
+      hint: 'ログインしてから再試行してください',
+      status: 401,
+      severity: 'warning',
+    });
+    const { body, status } = toErrorResponse(error);
+    const dict = resolveErrorDictionary(error.code);
+    const responseBody = dict
+      ? {
+          ...body,
+          ui: {
+            title: dict.title,
+            description: dict.description,
+            action: dict.action,
+            severity: dict.severity ?? error.severity,
+          },
+        }
+      : body;
+    return NextResponse.json(responseBody, { status });
   }
 
   const parsed = validateStampRequest(await req.json());
   if (!parsed.success) {
-    return errorResponse('INVALID_BODY', 'Invalid request body', parsed.hint, 400);
+    const error = new AppError({
+      code: 'APP-400-INVALID_REQUEST',
+      message: 'リクエストの形式が正しくありません',
+      hint: parsed.hint,
+      status: 400,
+      severity: 'warning',
+    });
+    const { body, status } = toErrorResponse(error);
+    const dict = resolveErrorDictionary(error.code);
+    const responseBody = dict
+      ? {
+          ...body,
+          ui: {
+            title: dict.title,
+            description: dict.description,
+            action: dict.action,
+            severity: dict.severity ?? error.severity,
+          },
+        }
+      : body;
+    return NextResponse.json(responseBody, { status });
   }
 
   const {
@@ -47,30 +76,54 @@ export async function POST(req: NextRequest) {
   } = parsed.data;
 
   try {
-    const machineRecords = await machinesTable
-      .select({
-        filterByFormula: `{machineid} = '${machineId}'`,
-        maxRecords: 1,
-      })
-      .firstPage();
+    const machine = await getMachineById(machineId);
 
-    if (machineRecords.length === 0 || !machineRecords[0].fields.active) {
-      return errorResponse(
-        'INVALID_MACHINE',
-        'Invalid or inactive machine ID',
-        'Check machineId',
-        400,
-      );
+    if (!machine || !machine.fields.active) {
+      throw new AppError({
+        code: 'APP-404-NOT_FOUND',
+        message: '機械IDが見つからないか非アクティブです',
+        hint: 'NFCタグや機械IDを確認してください',
+        status: 404,
+        severity: 'warning',
+      });
     }
-    const machineRecordId = machineRecords[0].id;
+    const machineRecordId = machine.id;
 
-    const activeSites = await sitesTable.select({ filterByFormula: '{active} = 1' }).all();
-    console.info('[sites:summary]', {
-      count: activeSites.length,
-      hasAcoru: activeSites.some((s) => s.fields.name === 'Acoru合同会社'),
-      acoruActive:
-        activeSites.find((s) => s.fields.name === 'Acoru合同会社')?.fields.active ?? null,
-      acoruHasPoly: !!activeSites.find((s) => s.fields.name === 'Acoru合同会社')?.fields.polygon_geojson,
+    const activeSites = await sitesTable
+      .select({ filterByFormula: '{active} = 1' })
+      .all()
+      .catch((error: unknown) => {
+        const statusCode = typeof (error as { statusCode?: number })?.statusCode === 'number'
+          ? (error as { statusCode: number }).statusCode
+          : undefined;
+        if (statusCode === 429) {
+          throw new AppError({
+            code: 'EXT-AIRTABLE-429',
+            message: 'Airtableのレート制限に到達しました',
+            hint: '1分ほど待ってから再試行してください',
+            status: 429,
+            severity: 'warning',
+            cause: error,
+          });
+        }
+        throw new AppError({
+          code: 'EXT-AIRTABLE-500',
+          message: '拠点データの取得に失敗しました',
+          hint: 'ネットワーク環境を確認し、時間をおいて再試行してください',
+          status: 502,
+          severity: 'error',
+          cause: error,
+        });
+      });
+    logger.info({
+      code: 'APP-200-SITES_SUMMARY',
+      message: 'Active sites fetched',
+      context: {
+        count: activeSites.length,
+        hasAcoru: activeSites.some((s) => s.fields.name === 'Acoru合同会社'),
+      },
+      route: '/api/stamp',
+      userId: session.user.id,
     });
     const { site: nearestSite, method: decisionMethod, nearestDistanceM } =
       findNearestSiteDetailed(lat, lon, activeSites);
@@ -104,7 +157,31 @@ export async function POST(req: NextRequest) {
       fields.timestamp = timestamp;
     }
 
-    await logsTable.create([{ fields }], { typecast: true });
+    await logsTable
+      .create([{ fields }], { typecast: true })
+      .catch((error: unknown) => {
+        const statusCode = typeof (error as { statusCode?: number })?.statusCode === 'number'
+          ? (error as { statusCode: number }).statusCode
+          : undefined;
+        if (statusCode === 429) {
+          throw new AppError({
+            code: 'EXT-AIRTABLE-429',
+            message: 'Airtableのレート制限に到達しました',
+            hint: '1分ほど待ってから再試行してください',
+            status: 429,
+            severity: 'warning',
+            cause: error,
+          });
+        }
+        throw new AppError({
+          code: 'EXT-AIRTABLE-500',
+          message: 'Airtableにログを保存できませんでした',
+          hint: '時間をおいてから再試行してください',
+          status: 502,
+          severity: 'error',
+          cause: error,
+        });
+      });
 
     return NextResponse.json(
       {
@@ -117,12 +194,37 @@ export async function POST(req: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
-    console.error('Failed to record stamp:', error);
-    return errorResponse(
-      'INTERNAL_ERROR',
-      'Internal Server Error',
-      'Retry later',
-      500,
-    );
+    const appError = error instanceof AppError
+      ? error
+      : new AppError({
+        code: 'APP-500-INTERNAL',
+        message: '打刻処理に失敗しました',
+        hint: '時間をおいてから再試行してください',
+        status: 500,
+        severity: 'error',
+        cause: error,
+      });
+    const dictionary = resolveErrorDictionary(appError.code);
+    logger.error({
+      code: appError.code,
+      message: 'Failed to record stamp',
+      route: '/api/stamp',
+      userId: session?.user?.id,
+      context: { hint: appError.hint },
+      error,
+    });
+    const payload = toErrorResponse(appError);
+    const body = {
+      ...payload.body,
+      ui: dictionary
+        ? {
+            title: dictionary.title,
+            description: dictionary.description,
+            action: dictionary.action,
+            severity: dictionary.severity ?? appError.severity,
+          }
+        : undefined,
+    };
+    return NextResponse.json(body, { status: payload.status });
   }
 }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import ErrorBanner from '@/src/components/ui/ErrorBanner';
 
 export default function LoginForm() {
   const [username, setUsername] = useState('');
@@ -47,11 +48,14 @@ export default function LoginForm() {
     <div className="container-p flex min-h-[calc(100vh-61px)] items-center justify-center bg-base">
       <div className="card text-left">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <p className="rounded-md border border-accent-2/50 bg-accent-2/10 p-3 text-center font-bold text-accent-2">
-              {error}
-            </p>
-          )}
+          {error ? (
+            <ErrorBanner
+              title="ログインに失敗しました"
+              description={error}
+              severity="warning"
+              onRetry={() => window.location.reload()}
+            />
+          ) : null}
           <div>
             <label
               htmlFor="username"

@@ -1,4 +1,7 @@
 import Airtable, { FieldSet } from 'airtable';
+import { AppError, toErrorResponse } from '@/src/lib/errors';
+import { logger } from '@/src/lib/logger';
+import { resolveErrorDictionary } from '@/src/i18n/errors';
 
 export const runtime = 'nodejs';
 
@@ -34,7 +37,27 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 500): Pro
   try {
     return await fn();
   } catch (error) {
-    if (retries === 0) throw error;
+    const statusCode = typeof (error as { statusCode?: number })?.statusCode === 'number'
+      ? (error as { statusCode: number }).statusCode
+      : undefined;
+    if (statusCode === 429) {
+      logger.warn({
+        code: 'EXT-AIRTABLE-429',
+        message: 'Airtable rate limited request',
+        route: '/api/out-to-session',
+        context: { delay },
+      });
+    }
+    if (retries === 0) {
+      throw new AppError({
+        code: statusCode === 429 ? 'EXT-AIRTABLE-429' : 'EXT-AIRTABLE-500',
+        message: statusCode === 429 ? 'Airtableのレート制限に達しました' : 'Airtable処理に失敗しました',
+        hint: '時間をおいて再試行してください',
+        status: statusCode === 429 ? 429 : 502,
+        severity: statusCode === 429 ? 'warning' : 'error',
+        cause: error,
+      });
+    }
     await new Promise((r) => setTimeout(r, delay));
     return withRetry(fn, retries - 1, delay * 2);
   }
@@ -54,17 +77,83 @@ export async function POST(req: Request): Promise<Response> {
   try {
     body = await req.json();
   } catch {
-    return Response.json({ ok: false, error: 'invalid JSON' }, { status: 400 });
+    const error = new AppError({
+      code: 'APP-400-INVALID_REQUEST',
+      message: 'JSONの解析に失敗しました',
+      hint: '送信フォーマットを確認してください',
+      status: 400,
+      severity: 'warning',
+    });
+    const { body, status } = toErrorResponse(error);
+    const dict = resolveErrorDictionary(error.code);
+    return Response.json(
+      dict
+        ? {
+            ...body,
+            ui: {
+              title: dict.title,
+              description: dict.description,
+              action: dict.action,
+              severity: dict.severity ?? error.severity,
+            },
+          }
+        : body,
+      { status },
+    );
   }
   const outLogId = (body as { outLogId?: unknown }).outLogId;
   if (typeof outLogId !== 'string') {
-    return Response.json({ ok: false, error: 'outLogId required' }, { status: 400 });
+    const error = new AppError({
+      code: 'APP-400-INVALID_REQUEST',
+      message: 'outLogId が指定されていません',
+      hint: '打刻データを再度選択してください',
+      status: 400,
+      severity: 'warning',
+    });
+    const { body, status } = toErrorResponse(error);
+    const dict = resolveErrorDictionary(error.code);
+    return Response.json(
+      dict
+        ? {
+            ...body,
+            ui: {
+              title: dict.title,
+              description: dict.description,
+              action: dict.action,
+              severity: dict.severity ?? error.severity,
+            },
+          }
+        : body,
+      { status },
+    );
   }
 
   try {
     const outLog = await withRetry(() => base<LogFields>(LOGS_TABLE).find(outLogId));
     if (outLog.fields.type !== 'OUT') {
-      return Response.json({ ok: false, error: 'log is not OUT' }, { status: 400 });
+      const error = new AppError({
+        code: 'APP-409-CONFLICT',
+        message: 'OUT打刻ではありません',
+        hint: '退勤打刻を選択してください',
+        status: 409,
+        severity: 'warning',
+      });
+      const { body, status } = toErrorResponse(error);
+      const dict = resolveErrorDictionary(error.code);
+      return Response.json(
+        dict
+          ? {
+              ...body,
+              ui: {
+                title: dict.title,
+                description: dict.description,
+                action: dict.action,
+                severity: dict.severity ?? error.severity,
+              },
+            }
+          : body,
+        { status },
+      );
     }
     const outTs = new Date(outLog.fields.timestamp);
     const { user, username, siteName, workDescription } = outLog.fields;
@@ -81,6 +170,12 @@ export async function POST(req: Request): Promise<Response> {
 
     const inRecord = candidates.find((r) => new Date(r.fields.timestamp) < outTs);
     if (!inRecord) {
+      logger.warn({
+        code: 'APP-404-NO_IN_LOG',
+        message: 'INログが見つかりません',
+        route: '/api/out-to-session',
+        context: { outLogId },
+      });
       return Response.json({ ok: true, skipped: true, reason: 'no IN match' });
     }
     const inTs = new Date(inRecord.fields.timestamp);
@@ -116,9 +211,46 @@ export async function POST(req: Request): Promise<Response> {
     const created = await withRetry(() =>
       base<SessionFields>(SESSIONS_TABLE).create(session)
     );
+    logger.info({
+      code: 'APP-201-SESSION_CREATED',
+      message: 'Session record created',
+      route: '/api/out-to-session',
+      context: { sessionId: created.id, outLogId },
+    });
     return Response.json({ ok: true, createdId: created.id, fields: created.fields });
   } catch (error) {
-    console.error(error);
-    return Response.json({ ok: false, error: 'internal error' }, { status: 500 });
+    const appError = error instanceof AppError
+      ? error
+      : new AppError({
+          code: 'APP-500-INTERNAL',
+          message: 'セッション生成に失敗しました',
+          hint: '時間をおいて再試行してください',
+          status: 500,
+          severity: 'error',
+          cause: error,
+        });
+    logger.error({
+      code: appError.code,
+      message: 'Failed to convert OUT log to session',
+      route: '/api/out-to-session',
+      context: { outLogId },
+      error,
+    });
+    const { body, status } = toErrorResponse(appError);
+    const dict = resolveErrorDictionary(appError.code);
+    return Response.json(
+      dict
+        ? {
+            ...body,
+            ui: {
+              title: dict.title,
+              description: dict.description,
+              action: dict.action,
+              severity: dict.severity ?? appError.severity,
+            },
+          }
+        : body,
+      { status },
+    );
   }
 }

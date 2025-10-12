@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo } from 'react';
 
 type CalendarHeaderProps = {
@@ -50,6 +51,23 @@ export default function CalendarHeader({ year, month, onPrev, onNext, onReset }:
         >
           今月
         </button>
+      </div>
+      <div className="ml-auto flex items-center gap-2">
+        <Link
+          href={`/api/reports/month?year=${year}&month=${month}`}
+          className="rounded-md border border-gray-300 px-3 py-1 text-sm text-black hover:bg-gray-50"
+          prefetch={false}
+        >
+          Excel出力
+        </Link>
+        <Link
+          href={`/api/reports/month?year=${year}&month=${month}&format=csv`}
+          className="rounded-md border border-gray-300 px-2 py-1 text-xs text-black hover:bg-gray-50"
+          prefetch={false}
+          aria-label="CSVダウンロード"
+        >
+          CSV
+        </Link>
       </div>
     </div>
   );

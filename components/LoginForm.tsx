@@ -29,10 +29,18 @@ export default function LoginForm() {
       } else if (result?.ok) {
         // 現在のページのクエリパラメータを取得
         const params = new URLSearchParams(searchParams.toString());
+        const legacyMachineId = params.get('machineid');
+        if (legacyMachineId) {
+          params.delete('machineid');
+          params.set('machineId', legacyMachineId);
+        }
+        if (!params.has('machineId')) {
+          params.set('machineId', '1001');
+        }
         const queryString = params.toString();
 
         // リダイレクト先URLを構築
-        const destination = `/nfc${queryString ? `?${queryString}` : ''}`;
+        const destination = `/nfc?${queryString}`;
         router.push(destination);
       }
     } catch (err) {

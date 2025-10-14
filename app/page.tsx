@@ -6,7 +6,7 @@ export default async function Home() {
 
   if (session) {
     // ユーザーがログインしている場合、NFC打刻ページにリダイレクトします
-    redirect('/nfc');
+    redirect('/nfc?machineId=1001');
   } else {
     // ユーザーがログインしていない場合、ログインページにリダイレクトします
     redirect('/login');

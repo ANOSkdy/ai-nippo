@@ -120,7 +120,7 @@ export default function StampCard({
   const [selectedWork, setSelectedWork] = useState('');
 
   const searchParams = useSearchParams();
-  const machineId = searchParams.get('machineid');
+  const machineId = searchParams.get('machineId') ?? searchParams.get('machineid') ?? '1001';
 
   useEffect(() => {
     if (stampType === 'IN') {

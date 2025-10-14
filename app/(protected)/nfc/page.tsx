@@ -16,14 +16,20 @@ export default async function NFCPage({ searchParams }: NFCPageProps) {
     redirect('/login');
   }
 
-  const machineId = searchParams.machineid;
-  if (typeof machineId !== 'string') {
+  const machineIdParam =
+    typeof searchParams.machineId === 'string'
+      ? (searchParams.machineId as string)
+      : typeof searchParams.machineid === 'string'
+      ? (searchParams.machineid as string)
+      : undefined;
+
+  if (!machineIdParam) {
     return <div>無効な機械IDです。</div>;
   }
 
   try {
     // ### 修正点 1: machineIdから機械情報を取得 ###
-    const machine = await getMachineById(machineId);
+    const machine = await getMachineById(machineIdParam);
     if (!machine) {
       return <div>登録されていない機械IDです。</div>;
     }
@@ -43,7 +49,7 @@ export default async function NFCPage({ searchParams }: NFCPageProps) {
           initialWorkDescription={initialWorkDescription}
           userName={session.user.name ?? 'ゲスト'}
           // ### 修正点 2: 取得した機械名をStampCardに渡す ###
-          machineName={searchParams.machineid as string}
+          machineName={machineIdParam}
         />
       </main>
     );

@@ -7,15 +7,23 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsc app/api/stamp/validator.ts --module nodenext --target es2020 --moduleResolution nodenext --esModuleInterop --outDir tests/dist && node --test tests/*.test.mjs"
+    "test": "tsc app/api/stamp/validator.ts lib/airtableSchema.ts src/lib/excel/freeUserColumns.ts --module nodenext --target es2020 --moduleResolution nodenext --esModuleInterop --outDir tests/dist && cp tests/dist/app/api/stamp/validator.js tests/dist/validator.js && node --test tests/*.test.mjs",
+    "diag:p1": "tsx scripts/p1-diagnostics.ts"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "airtable": "^0.12.2",
     "bcryptjs": "^3.0.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
     "next": "15.5.2",
     "next-auth": "5.0.0-beta.29",
     "react": "19.1.0",
     "react-dom": "19.1.0"
+  },
+  "optionalDependencies": {
+    "@sparticuz/chromium": "^126.0.0",
+    "puppeteer-core": "^23.5.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -31,6 +39,7 @@
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "tailwindcss": "3.4.17",
-    "typescript": "^5"
+    "typescript": "^5",
+    "tsx": "^4.19.0"
   }
 }

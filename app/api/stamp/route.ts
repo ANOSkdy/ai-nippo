@@ -1,16 +1,20 @@
+// Ensure this route is built and executed on the Node.js runtime (NOT Edge)
+export const runtime = 'nodejs';
+
 import { NextRequest, NextResponse } from 'next/server';
+// (intentionally no static import for the worker)
 import { auth } from '@/lib/auth';
 import {
   logsTable,
   machinesTable,
   sitesTable,
+  withRetry,
 } from '@/lib/airtable';
 import { findNearestSiteDetailed } from '@/lib/geo';
 import { LOGS_ALLOWED_FIELDS, filterFields } from '@/lib/airtableSchema';
 import { LogFields } from '@/types';
 import { validateStampRequest } from './validator';
-
-export const runtime = 'nodejs';
+import { logger } from '@/lib/logger';
 
 function errorResponse(
   code: string,
@@ -65,12 +69,9 @@ export async function POST(req: NextRequest) {
     const machineRecordId = machineRecords[0].id;
 
     const activeSites = await sitesTable.select({ filterByFormula: '{active} = 1' }).all();
-    console.info('[sites:summary]', {
+    logger.info('stamp active sites summary', {
       count: activeSites.length,
       hasAcoru: activeSites.some((s) => s.fields.name === 'Acoru合同会社'),
-      acoruActive:
-        activeSites.find((s) => s.fields.name === 'Acoru合同会社')?.fields.active ?? null,
-      acoruHasPoly: !!activeSites.find((s) => s.fields.name === 'Acoru合同会社')?.fields.polygon_geojson,
     });
     const { site: nearestSite, method: decisionMethod, nearestDistanceM } =
       findNearestSiteDetailed(lat, lon, activeSites);
@@ -100,11 +101,29 @@ export async function POST(req: NextRequest) {
     if (!fields.siteName && nearestSite?.fields?.name) {
       fields.siteName = nearestSite.fields.name;
     }
+    const clientName =
+      typeof nearestSite?.fields?.client === 'string'
+        ? nearestSite.fields.client.trim()
+        : undefined;
+    if (clientName) {
+      fields.clientName = clientName;
+    }
     if (!fields.timestamp) {
       fields.timestamp = timestamp;
     }
 
-    await logsTable.create([{ fields }], { typecast: true });
+    const createdRecords = await withRetry(() =>
+      logsTable.create([{ fields }], { typecast: true })
+    );
+    const created = createdRecords[0];
+
+    if (created) {
+      logger.info('stamp record created', {
+        userId: session.user.id,
+        recordId: created.id,
+        type,
+      });
+    }
 
     return NextResponse.json(
       {
@@ -117,7 +136,7 @@ export async function POST(req: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
-    console.error('Failed to record stamp:', error);
+    logger.error('Failed to record stamp', error);
     return errorResponse(
       'INTERNAL_ERROR',
       'Internal Server Error',

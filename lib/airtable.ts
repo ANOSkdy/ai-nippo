@@ -6,16 +6,54 @@ import {
   WorkTypeFields,
   LogFields,
 } from '@/types';
+import { logger } from './logger';
 
-// 環境変数が設定されていない場合にエラーを投げる
-if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
-  throw new Error('Airtable API Key or Base ID is not defined in .env.local');
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries = 3,
+  delay = 500
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries <= 0) {
+      throw error;
+    }
+    logger.warn('withRetry retrying after error', {
+      retriesLeft: retries,
+      delay,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message }
+          : error,
+    });
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    return withRetry(fn, retries - 1, delay * 2);
+  }
 }
 
-// Airtableの基本設定を初期化
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
-  process.env.AIRTABLE_BASE_ID
-);
+export const LOGS_TABLE = 'Logs';
+export const MACHINES_TABLE = 'Machines';
+export const WORKTYPES_TABLE = 'WorkTypes';
+
+const apiKey = process.env.AIRTABLE_API_KEY;
+const baseId = process.env.AIRTABLE_BASE_ID;
+
+if (!apiKey || !baseId) {
+  throw new Error(
+    [
+      'Airtable env missing.',
+      `AIRTABLE_API_KEY=${apiKey ? '[set]' : '[missing]'}`,
+      `AIRTABLE_BASE_ID=${baseId ? '[set]' : '[missing]'}`,
+    ].join(' ')
+  );
+}
+
+export const base = new Airtable({ apiKey }).base(baseId);
+
+export function getBase() {
+  return base;
+}
 
 // 型付けされたテーブルを返すヘルパー関数
 const getTypedTable = <T extends FieldSet>(tableName: string): Table<T> => {
@@ -42,6 +80,21 @@ export const getMachineById = async (machineId: string) => {
     return records[0] || null;
   } catch (error) {
     console.error('Error fetching machine by ID:', error);
+    throw error;
+  }
+};
+
+export const getFirstMachine = async () => {
+  try {
+    const records = await machinesTable
+      .select({
+        maxRecords: 1,
+        sort: [{ field: 'machineid', direction: 'asc' }],
+      })
+      .firstPage();
+    return records[0] || null;
+  } catch (error) {
+    console.error('Error fetching first machine:', error);
     throw error;
   }
 };

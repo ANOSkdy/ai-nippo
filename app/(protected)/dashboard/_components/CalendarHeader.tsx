@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useMemo } from 'react';
 
 type CalendarHeaderProps = {
@@ -24,50 +23,34 @@ export default function CalendarHeader({ year, month, onPrev, onNext, onReset }:
         <h2 className="text-xl font-semibold text-gray-900">月次カレンダー</h2>
         <p className="text-sm text-gray-500">月単位で稼働状況を確認し、必要に応じて日次の詳細を開けます。</p>
       </div>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onPrev}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:border-blue-500 hover:text-blue-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-          aria-label="前の月へ"
-        >
-          前月
-        </button>
-        <div className="text-sm font-medium text-gray-700" aria-live="polite">
-          {label}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onPrev}
+            className="tap-target rounded-lg border border-brand-border bg-brand-surface-alt px-3 py-2 text-sm font-semibold text-brand-text shadow-sm transition hover:bg-brand-surface"
+          >
+            前月
+          </button>
+          <div className="text-sm font-medium text-brand-text" aria-live="polite">
+            {label}
+          </div>
+          <button
+            type="button"
+            onClick={onNext}
+            className="tap-target rounded-lg border border-brand-border bg-brand-surface-alt px-3 py-2 text-sm font-semibold text-brand-text shadow-sm transition hover:bg-brand-surface"
+          >
+            次月
+          </button>
+          <button
+            type="button"
+            onClick={onReset}
+            className="tap-target rounded-lg border border-brand-border bg-brand-primary/10 px-3 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/20"
+          >
+            今月
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onNext}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:border-blue-500 hover:text-blue-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-          aria-label="次の月へ"
-        >
-          次月
-        </button>
-        <button
-          type="button"
-          onClick={onReset}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:border-blue-500 hover:text-blue-600 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-        >
-          今月
-        </button>
-      </div>
-      <div className="ml-auto flex items-center gap-2">
-        <Link
-          href={`/api/reports/month?year=${year}&month=${month}`}
-          className="rounded-md border border-gray-300 px-3 py-1 text-sm text-black hover:bg-gray-50"
-          prefetch={false}
-        >
-          Excel出力
-        </Link>
-        <Link
-          href={`/api/reports/month?year=${year}&month=${month}&format=csv`}
-          className="rounded-md border border-gray-300 px-2 py-1 text-xs text-black hover:bg-gray-50"
-          prefetch={false}
-          aria-label="CSVダウンロード"
-        >
-          CSV
-        </Link>
+        {/* Excel 出力ボタンは非表示（要件により UI から撤去） */}
       </div>
     </div>
   );

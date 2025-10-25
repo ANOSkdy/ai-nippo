@@ -4,10 +4,14 @@ import { getLogsBetween, summariseMonth } from '@/lib/airtable/logs';
 
 export const runtime = 'nodejs';
 
+const RANGE_BUFFER_DAYS = 1;
+
 function resolveMonthRange(year: number, month: number) {
   const startUtc = new Date(Date.UTC(year, month - 1, 1, -9, 0, 0));
   const nextMonth = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
-  const endUtc = new Date(Date.UTC(nextMonth.year, nextMonth.month - 1, 1, -9, 0, 0));
+  const endUtc = new Date(
+    Date.UTC(nextMonth.year, nextMonth.month - 1, 1 + RANGE_BUFFER_DAYS, -9, 0, 0),
+  );
   return { from: startUtc, to: endUtc };
 }
 

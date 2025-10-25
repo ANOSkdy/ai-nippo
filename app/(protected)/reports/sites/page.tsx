@@ -330,37 +330,18 @@ export default function SiteReportPage() {
     let active = true;
     async function loadMasters() {
       try {
-        const machineResponsePromise = fetch('/api/masters/machines', {
+        const siteRes = await fetch('/api/masters/sites', {
           cache: 'no-store',
           credentials: 'same-origin',
-        }).catch((error) => {
-          console.warn('[reports][sites] failed to fetch machine masters', error);
-          return null;
         });
-        const [siteRes, machineRes] = await Promise.all([
-          fetch('/api/masters/sites', { cache: 'no-store', credentials: 'same-origin' }),
-          machineResponsePromise,
-        ]);
         if (!siteRes.ok) {
           throw new Error('Failed to load site masters');
         }
         const sitesJson = (await siteRes.json()) as SiteMaster[] | null;
         if (!active) return;
         setSites(Array.isArray(sitesJson) ? sitesJson : []);
-        if (machineRes?.ok) {
-          const json = await machineRes.json();
-          if (!active) return;
-          const list: MachineMaster[] = Array.isArray(json?.records)
-            ? json.records
-            : Array.isArray(json)
-              ? json
-              : [];
-          setMachines(list);
-        } else if (machineRes && !machineRes.ok) {
-          console.warn('[reports][sites] machine masters responded with non-ok status', machineRes.status);
-          if (active) {
-            setMachines([]);
-          }
+        if (active) {
+          setMachines([]);
         }
       } catch (err) {
         console.error('[reports][sites] failed to load masters', err);

@@ -4,6 +4,7 @@ import './reports-print.css';
 import NextAuthSessionProvider from '@/components/SessionProvider';
 import SkipLink from '@/components/SkipLink';
 import NavTabsServer from '@/components/NavTabsServer';
+import TransitionProvider from '@/components/TransitionProvider';
 
 export const metadata: Metadata = {
   title: 'AI日報「スマレポ」',
@@ -27,7 +28,7 @@ export default function RootLayout({
         </header>
         <NextAuthSessionProvider>
           <main id="main" role="main" className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-12 pt-6 sm:px-6">
-            {children}
+            <TransitionProvider>{children}</TransitionProvider>
           </main>
         </NextAuthSessionProvider>
       </body>

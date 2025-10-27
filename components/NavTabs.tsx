@@ -10,18 +10,32 @@ const NAV_TABS = [
   { href: '/nfc?machineId=1001', label: '打刻ページ' },
 ] as const;
 
+type NavTab = (typeof NAV_TABS)[number];
+
+type NavTabsProps = {
+  showNfc?: boolean;
+};
+
 function isActivePath(currentPath: string | null, href: string): boolean {
   if (!currentPath) return false;
   const baseHref = href.split('?')[0];
   return currentPath === baseHref || currentPath.startsWith(`${baseHref}/`);
 }
 
-export default function NavTabs() {
+function filterTabs(tabs: readonly NavTab[], showNfc: boolean): readonly NavTab[] {
+  if (showNfc) {
+    return tabs;
+  }
+  return tabs.filter((tab) => tab.href.split('?')[0] !== '/nfc');
+}
+
+export default function NavTabs({ showNfc = true }: NavTabsProps) {
   const pathname = usePathname();
+  const tabsToRender = filterTabs(NAV_TABS, showNfc);
 
   return (
     <nav role="navigation" aria-label="主要タブナビゲーション" className="flex items-center gap-1 text-sm font-medium">
-      {NAV_TABS.map((tab) => {
+      {tabsToRender.map((tab) => {
         const active = isActivePath(pathname, tab.href);
         return (
           <Link

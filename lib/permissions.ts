@@ -8,13 +8,27 @@ type SessionLike = {
   user?: Record<string, unknown> | null;
 } | null;
 
+function normalizeRoleString(value: string): Role {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return 'user';
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower === 'user') return 'user';
+  if (lower === 'admin') return 'admin';
+  return trimmed as Role;
+}
+
 function normRole(value: unknown): Role | null {
   if (!value) return null;
-  if (typeof value === 'string') return value as Role;
+  if (typeof value === 'string') {
+    return normalizeRoleString(value);
+  }
   if (typeof value === 'object' && value !== null && 'name' in value) {
     const name = (value as { name?: unknown }).name;
     if (typeof name === 'string') {
-      return name as Role;
+      return normalizeRoleString(name);
     }
   }
   return null;
@@ -116,3 +130,8 @@ export async function getCurrentUserRole(): Promise<Role> {
 }
 
 export type { Role };
+
+export function isRoleUser(role: Role | null | undefined): boolean {
+  const normalized = normRole(role ?? null);
+  return (normalized ?? 'user') === 'user';
+}

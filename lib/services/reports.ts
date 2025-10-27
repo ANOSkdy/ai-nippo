@@ -37,10 +37,6 @@ function normalizeLookupText(value: unknown): string | null {
 }
 
 type DailyAggregate = {
-  firstStart?: string;
-  firstStartMs?: number;
-  lastEnd?: string;
-  lastEndMs?: number;
   totalMinutes: number;
   clientName?: string | null;
 };
@@ -61,14 +57,6 @@ function toDayKey(session: SessionReportRow): string | null {
   return `${yearStr}-${monthStr}-${dayStr}`;
 }
 
-function parseTimestamp(value: string | null | undefined): number | null {
-  if (!value) {
-    return null;
-  }
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function buildDailyAggregates(sessions: SessionReportRow[]): Map<string, DailyAggregate> {
   const aggregates = new Map<string, DailyAggregate>();
   for (const session of sessions) {
@@ -77,18 +65,6 @@ function buildDailyAggregates(sessions: SessionReportRow[]): Map<string, DailyAg
       continue;
     }
     const entry = aggregates.get(key) ?? { totalMinutes: 0 };
-
-    const startTs = parseTimestamp(session.start);
-    if (startTs !== null && (entry.firstStartMs == null || startTs < entry.firstStartMs)) {
-      entry.firstStartMs = startTs;
-      entry.firstStart = session.start ?? undefined;
-    }
-
-    const endTs = parseTimestamp(session.end);
-    if (endTs !== null && (entry.lastEndMs == null || endTs > entry.lastEndMs)) {
-      entry.lastEndMs = endTs;
-      entry.lastEnd = session.end ?? undefined;
-    }
 
     const rawDuration = session.durationMin;
     if (typeof rawDuration === 'number' && Number.isFinite(rawDuration) && rawDuration > 0) {
@@ -113,11 +89,11 @@ function formatHoursDecimal(minutes: number): string {
   return `${text}h`;
 }
 
-function formatTimestampJst(value: string | null | undefined): string | null {
-  if (!value) {
+function formatTimestampJstFromMs(timestampMs: number | null | undefined): string | null {
+  if (timestampMs == null || !Number.isFinite(timestampMs)) {
     return null;
   }
-  const date = new Date(value);
+  const date = new Date(timestampMs);
   if (Number.isNaN(date.getTime())) {
     return null;
   }
@@ -136,6 +112,24 @@ function formatTimestampJst(value: string | null | undefined): string | null {
     return null;
   }
   return `${hour}:${minute}`;
+}
+
+function formatTimestampJst(
+  value: string | null | undefined,
+  fallbackMs?: number | null | undefined,
+): string | null {
+  const msCandidate = fallbackMs != null && Number.isFinite(fallbackMs) ? fallbackMs : null;
+  if (msCandidate != null) {
+    return formatTimestampJstFromMs(msCandidate);
+  }
+  if (!value) {
+    return null;
+  }
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+  return formatTimestampJstFromMs(parsed);
 }
 
 function pickFirstStringField(fields: Record<string, unknown>, keys: string[]): string | null {
@@ -228,14 +222,15 @@ export async function getReportRowsByUserName(
 
   const dailySummaries = new Map<
     string,
-    { minutes: number; overtimeHours: string }
+    { workingMinutes: number; overtimeMinutes: number }
   >();
   for (const [dayKey, aggregate] of aggregates.entries()) {
     const normalizedMinutes = normalizeDailyMinutes(aggregate.totalMinutes);
+    const workingMinutes = Math.min(normalizedMinutes, STANDARD_WORK_MINUTES);
     const overtimeMinutes = Math.max(0, normalizedMinutes - STANDARD_WORK_MINUTES);
     dailySummaries.set(dayKey, {
-      minutes: normalizedMinutes,
-      overtimeHours: formatHoursDecimal(overtimeMinutes),
+      workingMinutes,
+      overtimeMinutes,
     });
   }
 
@@ -248,12 +243,11 @@ export async function getReportRowsByUserName(
       const directClientName = normalizeLookupText((session as Record<string, unknown>).clientName);
       const resolvedClientName =
         directClientName ?? aggregate?.clientName ?? siteClientName ?? undefined;
-      const resolvedStart = session.start ?? aggregate?.firstStart ?? null;
-      const resolvedEnd = session.end ?? aggregate?.lastEnd ?? null;
-      const startJst = formatTimestampJst(resolvedStart);
-      const endJst = formatTimestampJst(resolvedEnd);
-      const minutes = summary?.minutes ?? 0;
-        const overtimeHours = summary?.overtimeHours ?? '0h';
+      const startJst = formatTimestampJst(session.start, session.startMs);
+      const endJst = formatTimestampJst(session.end, session.endMs);
+      const minutes = summary?.workingMinutes ?? 0;
+      const overtimeMinutes = summary?.overtimeMinutes ?? 0;
+      const overtimeHours = formatHoursDecimal(overtimeMinutes);
 
       return {
         year: session.year ?? 0,

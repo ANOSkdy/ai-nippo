@@ -24,9 +24,12 @@ async function fetchUsers(): Promise<string[]> {
   return Array.from(names).sort((a, b) => a.localeCompare(b, 'ja'));
 }
 
+const STANDARD_WORK_MINUTES = 7.5 * 60;
+
 function formatWorkingHours(minutes: number): string {
   const safe = Number.isFinite(minutes) ? Math.max(0, Math.round(minutes)) : 0;
-  const hours = safe / 60;
+  const clamped = Math.min(safe, STANDARD_WORK_MINUTES);
+  const hours = clamped / 60;
   const rounded = Math.round(hours * 100) / 100;
   const text = rounded.toFixed(2).replace(/\.0+$/, '').replace(/\.([1-9])0$/, '.$1');
   return `${text}h`;
@@ -271,7 +274,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
                       <td className="px-4 py-3">{row.startJst ?? ''}</td>
                       <td className="px-4 py-3">{row.endJst ?? ''}</td>
                       <td className="px-4 py-3">{formatWorkingHours(row.minutes)}</td>
-                      <td className="px-4 py-3">{row.overtimeHours ?? '0.0h'}</td>
+                      <td className="px-4 py-3">{row.overtimeHours ?? '0h'}</td>
                     </tr>
                   ))
                 )}

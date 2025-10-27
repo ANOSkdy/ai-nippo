@@ -1,10 +1,12 @@
 import Link from 'next/link';
+import DailyTimelineBar from '@/components/reports/DailyTimelineBar';
+import PrintA4Button from '@/components/PrintA4Button';
 import ReportsTabs from '@/components/reports/ReportsTabs';
+import { groupByUserDate, type DailyGroup } from '@/app/(protected)/reports/_lib/groupByUserDate';
 import { usersTable } from '@/lib/airtable';
 import type { ReportRow } from '@/lib/reports/pair';
 import { getReportRowsByUserName } from '@/lib/services/reports';
-
-import PrintA4Button from '@/components/PrintA4Button';
+import { fetchSessionReportRows } from '@/src/lib/sessions-reports';
 
 import './print-a4.css';
 
@@ -77,6 +79,28 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
     if (filters.site && row.siteName !== filters.site) return false;
     return true;
   });
+
+  const sessionRows = filters.user ? await fetchSessionReportRows({ userName: filters.user }) : [];
+  const sessionCandidates = sessionRows.filter((session) => {
+    if (!session.isCompleted) return false;
+    if (!session.date) return false;
+    if (filters.year && session.year !== filters.year) return false;
+    if (filters.month && session.month !== filters.month) return false;
+    if (filters.day && session.day !== filters.day) return false;
+    if (filters.site) {
+      const site = typeof session.siteName === 'string' ? session.siteName.trim() : '';
+      if (site !== filters.site) return false;
+    }
+    return true;
+  });
+
+  const dailyGroups = groupByUserDate(sessionCandidates);
+  const timelineByDate = new Map<string, DailyGroup>();
+  for (const group of dailyGroups) {
+    if (!timelineByDate.has(group.date)) {
+      timelineByDate.set(group.date, group);
+    }
+  }
 
   const availableYears = Array.from(new Set(rowsRaw.map((row) => row.year))).sort((a, b) => a - b);
   const availableMonths = Array.from(new Set(rowsRaw.map((row) => row.month))).sort((a, b) => a - b);
@@ -251,32 +275,58 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
                   <th scope="col" className="px-4 py-3 text-left font-semibold">
                     超過
                   </th>
+                  <th scope="col" className="px-4 py-3 text-left font-semibold print:hidden">
+                    日内タイムライン
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white text-sm text-gray-900">
                 {filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-6 text-center text-sm text-gray-500">
+                    <td colSpan={10} className="px-4 py-6 text-center text-sm text-gray-500">
                       条件に一致するデータがありません。
                     </td>
                   </tr>
                 ) : (
-                  filteredRows.map((row, index) => (
-                    <tr
-                      key={`${row.year}-${row.month}-${row.day}-${row.siteName}-${index}`}
-                      className="odd:bg-white even:bg-gray-50"
-                    >
-                      <td className="px-4 py-3">{row.year}</td>
-                      <td className="px-4 py-3">{row.month}</td>
-                      <td className="px-4 py-3">{row.day}</td>
-                      <td className="px-4 py-3">{row.siteName}</td>
-                      <td className="px-4 py-3">{row.clientName ?? '-'}</td>
-                      <td className="px-4 py-3">{row.startJst ?? ''}</td>
-                      <td className="px-4 py-3">{row.endJst ?? ''}</td>
-                      <td className="px-4 py-3">{formatWorkingHours(row.minutes)}</td>
-                      <td className="px-4 py-3">{row.overtimeHours ?? '0h'}</td>
-                    </tr>
-                  ))
+                  filteredRows.map((row, index) => {
+                    const dayKey = `${row.year.toString().padStart(4, '0')}-${row.month
+                      .toString()
+                      .padStart(2, '0')}-${row.day.toString().padStart(2, '0')}`;
+                    const timeline = timelineByDate.get(dayKey);
+
+                    return (
+                      <tr
+                        key={`${row.year}-${row.month}-${row.day}-${row.siteName}-${index}`}
+                        className="odd:bg-white even:bg-gray-50 print:break-inside-avoid"
+                      >
+                        <td className="px-4 py-3">{row.year}</td>
+                        <td className="px-4 py-3">{row.month}</td>
+                        <td className="px-4 py-3">{row.day}</td>
+                        <td className="px-4 py-3">{row.siteName}</td>
+                        <td className="px-4 py-3">{row.clientName ?? '-'}</td>
+                        <td className="px-4 py-3">{row.startJst ?? ''}</td>
+                        <td className="px-4 py-3">{row.endJst ?? ''}</td>
+                        <td className="px-4 py-3">{formatWorkingHours(row.minutes)}</td>
+                        <td className="px-4 py-3">{row.overtimeHours ?? '0h'}</td>
+                        <td className="px-4 py-3 print:hidden">
+                          {!timeline || timeline.sessions.length === 0 ? (
+                            <span className="text-xs text-neutral-400">タイムライン情報なし</span>
+                          ) : (
+                            <details className="print:hidden">
+                              <summary className="cursor-pointer text-sm text-neutral-500">内訳</summary>
+                              <div className="mt-2">
+                                <DailyTimelineBar
+                                  earliestStart={timeline.earliestStart}
+                                  latestEnd={timeline.latestEnd}
+                                  sessions={timeline.sessions}
+                                />
+                              </div>
+                            </details>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { auth } from '@/lib/auth';
 import { usersTable } from '@/lib/airtable';
 import { resolveUserIdentity } from '@/lib/services/userIdentity';
@@ -34,37 +36,53 @@ function normRole(value: unknown): Role | null {
   return null;
 }
 
-function escapeFormulaValue(value: string): string {
-  return value.replace(/'/g, "\\'");
+function coerceToString(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  return null;
 }
 
 function uniqueStrings(values: Array<unknown>): string[] {
   const result = new Set<string>();
   for (const value of values) {
-    if (typeof value === 'string' && value.trim().length > 0) {
-      result.add(value);
+    const coerced = coerceToString(value);
+    if (coerced) {
+      result.add(coerced);
     }
   }
   return Array.from(result);
 }
 
+function looksLikeRecordId(value: string): boolean {
+  return value.startsWith('rec');
+}
+
+function escapeFormulaValue(value: string): string {
+  return value.replace(/'/g, "\\'");
+}
+
 export async function getCurrentUserRole(): Promise<Role> {
   const session = (await auth()) as SessionLike;
-  const sessionRole = normRole(session?.user && (session.user as Record<string, unknown>).role);
+  const sessionUser = (session?.user as Record<string, unknown> | undefined) ?? undefined;
+  const sessionRole = normRole(sessionUser?.role);
   if (sessionRole) {
     return sessionRole;
   }
 
-  const sessionUser = (session?.user as Record<string, unknown> | undefined) ?? undefined;
   const identity = sessionUser ? resolveUserIdentity({ fields: sessionUser }) : undefined;
 
-  const candidateRecordIds = uniqueStrings([
+  const recordIdCandidates = uniqueStrings([
     sessionUser?.id,
-    sessionUser?.userId,
     identity?.userRecId,
   ]);
 
-  for (const recordId of candidateRecordIds) {
+  for (const recordId of recordIdCandidates) {
+    if (!looksLikeRecordId(recordId)) continue;
     try {
       const record = await usersTable.find(recordId);
       const roleFromRecord = normRole(record.get('role'));
@@ -72,7 +90,7 @@ export async function getCurrentUserRole(): Promise<Role> {
         return roleFromRecord;
       }
     } catch {
-      continue;
+      // ignore and fall through to the formula-based lookup
     }
   }
 
@@ -86,6 +104,7 @@ export async function getCurrentUserRole(): Promise<Role> {
   ]);
   const candidateEmails = uniqueStrings([
     sessionUser?.email,
+    sessionUser?.login,
   ]);
 
   const formulaParts: string[] = [];
@@ -123,7 +142,7 @@ export async function getCurrentUserRole(): Promise<Role> {
       }
     }
   } catch {
-    // fall through
+    // fall through to default role
   }
 
   return 'user';

@@ -15,7 +15,7 @@ test('skip link points to main landmark', () => {
 
 test('protected layout keeps navigation landmark in root layout', () => {
   const appLayout = read('../app/layout.tsx');
-  assert.match(appLayout, /<NavTabs \/>/);
+  assert.match(appLayout, /<NavTabsServer \/>/);
 
   const navTabs = read('../components/NavTabs.tsx');
   assert.match(navTabs, /role="navigation"/);

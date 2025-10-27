@@ -26,9 +26,10 @@ async function fetchUsers(): Promise<string[]> {
 
 function formatWorkingHours(minutes: number): string {
   const safe = Number.isFinite(minutes) ? Math.max(0, Math.round(minutes)) : 0;
-  const capped = Math.min(safe, 450);
-  const hours = capped / 60;
-  return `${hours.toFixed(1)}h`;
+  const hours = safe / 60;
+  const rounded = Math.round(hours * 100) / 100;
+  const text = rounded.toFixed(2).replace(/\.0+$/, '').replace(/\.([1-9])0$/, '.$1');
+  return `${text}h`;
 }
 
 function toSingleValue(value: string | string[] | undefined): string {

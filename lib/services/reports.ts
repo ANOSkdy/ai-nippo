@@ -108,7 +108,9 @@ function buildDailyAggregates(sessions: SessionReportRow[]): Map<string, DailyAg
 function formatHoursDecimal(minutes: number): string {
   const safeMinutes = Number.isFinite(minutes) ? Math.max(0, Math.round(minutes)) : 0;
   const hours = safeMinutes / 60;
-  return `${hours.toFixed(1)}h`;
+  const rounded = Math.round(hours * 100) / 100;
+  const text = rounded.toFixed(2).replace(/\.0+$/, '').replace(/\.([1-9])0$/, '.$1');
+  return `${text}h`;
 }
 
 function formatTimestampJst(value: string | null | undefined): string | null {
@@ -246,12 +248,12 @@ export async function getReportRowsByUserName(
       const directClientName = normalizeLookupText((session as Record<string, unknown>).clientName);
       const resolvedClientName =
         directClientName ?? aggregate?.clientName ?? siteClientName ?? undefined;
-      const resolvedStart = aggregate?.firstStart ?? session.start ?? null;
-      const resolvedEnd = aggregate?.lastEnd ?? session.end ?? null;
+      const resolvedStart = session.start ?? aggregate?.firstStart ?? null;
+      const resolvedEnd = session.end ?? aggregate?.lastEnd ?? null;
       const startJst = formatTimestampJst(resolvedStart);
       const endJst = formatTimestampJst(resolvedEnd);
       const minutes = summary?.minutes ?? 0;
-      const overtimeHours = summary?.overtimeHours ?? '0.0h';
+        const overtimeHours = summary?.overtimeHours ?? '0h';
 
       return {
         year: session.year ?? 0,

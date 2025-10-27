@@ -1,7 +1,7 @@
 import { sitesTable, withRetry } from '@/lib/airtable';
 import type { ReportRow } from '@/lib/reports/pair';
 import { fetchSessionReportRows, type SessionReportRow } from '@/src/lib/sessions-reports';
-import { applyTimeCalcV2FromMinutes } from '@/src/lib/timecalc';
+import { normalizeDailyMinutes } from '@/src/lib/timecalc';
 
 type SortKey = 'year' | 'month' | 'day' | 'siteName';
 
@@ -37,13 +37,11 @@ function normalizeLookupText(value: unknown): string | null {
 }
 
 type DailyAggregate = {
-  firstStart?: string;
-  firstStartMs?: number;
-  lastEnd?: string;
-  lastEndMs?: number;
   totalMinutes: number;
   clientName?: string | null;
 };
+
+const STANDARD_WORK_MINUTES = 7.5 * 60;
 
 function toDayKey(session: SessionReportRow): string | null {
   if (typeof session.date === 'string' && session.date.trim().length > 0) {
@@ -59,14 +57,6 @@ function toDayKey(session: SessionReportRow): string | null {
   return `${yearStr}-${monthStr}-${dayStr}`;
 }
 
-function parseTimestamp(value: string | null | undefined): number | null {
-  if (!value) {
-    return null;
-  }
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function buildDailyAggregates(sessions: SessionReportRow[]): Map<string, DailyAggregate> {
   const aggregates = new Map<string, DailyAggregate>();
   for (const session of sessions) {
@@ -75,18 +65,6 @@ function buildDailyAggregates(sessions: SessionReportRow[]): Map<string, DailyAg
       continue;
     }
     const entry = aggregates.get(key) ?? { totalMinutes: 0 };
-
-    const startTs = parseTimestamp(session.start);
-    if (startTs !== null && (entry.firstStartMs == null || startTs < entry.firstStartMs)) {
-      entry.firstStartMs = startTs;
-      entry.firstStart = session.start ?? undefined;
-    }
-
-    const endTs = parseTimestamp(session.end);
-    if (endTs !== null && (entry.lastEndMs == null || endTs > entry.lastEndMs)) {
-      entry.lastEndMs = endTs;
-      entry.lastEnd = session.end ?? undefined;
-    }
 
     const rawDuration = session.durationMin;
     if (typeof rawDuration === 'number' && Number.isFinite(rawDuration) && rawDuration > 0) {
@@ -106,23 +84,16 @@ function buildDailyAggregates(sessions: SessionReportRow[]): Map<string, DailyAg
 function formatHoursDecimal(minutes: number): string {
   const safeMinutes = Number.isFinite(minutes) ? Math.max(0, Math.round(minutes)) : 0;
   const hours = safeMinutes / 60;
-  return `${hours.toFixed(1)}h`;
+  const rounded = Math.round(hours * 100) / 100;
+  const text = rounded.toFixed(2).replace(/\.0+$/, '').replace(/\.([1-9])0$/, '.$1');
+  return `${text}h`;
 }
 
-function formatOvertimeFromSpan(firstStartMs?: number, lastEndMs?: number): string {
-  if (firstStartMs == null || lastEndMs == null || lastEndMs < firstStartMs) {
-    return '0.0h';
-  }
-  const spanMinutes = Math.max(0, Math.round((lastEndMs - firstStartMs) / 60000));
-  const overtimeMinutes = Math.max(0, spanMinutes - 90 - 450);
-  return formatHoursDecimal(overtimeMinutes);
-}
-
-function formatTimestampJst(value: string | null | undefined): string | null {
-  if (!value) {
+function formatTimestampJstFromMs(timestampMs: number | null | undefined): string | null {
+  if (timestampMs == null || !Number.isFinite(timestampMs)) {
     return null;
   }
-  const date = new Date(value);
+  const date = new Date(timestampMs);
   if (Number.isNaN(date.getTime())) {
     return null;
   }
@@ -141,6 +112,24 @@ function formatTimestampJst(value: string | null | undefined): string | null {
     return null;
   }
   return `${hour}:${minute}`;
+}
+
+function formatTimestampJst(
+  value: string | null | undefined,
+  fallbackMs?: number | null | undefined,
+): string | null {
+  const msCandidate = fallbackMs != null && Number.isFinite(fallbackMs) ? fallbackMs : null;
+  if (msCandidate != null) {
+    return formatTimestampJstFromMs(msCandidate);
+  }
+  if (!value) {
+    return null;
+  }
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+  return formatTimestampJstFromMs(parsed);
 }
 
 function pickFirstStringField(fields: Record<string, unknown>, keys: string[]): string | null {
@@ -231,24 +220,34 @@ export async function getReportRowsByUserName(
   const aggregates = buildDailyAggregates(completedSessions);
   const siteClientNames = await fetchSiteClientNames(completedSessions);
 
+  const dailySummaries = new Map<
+    string,
+    { workingMinutes: number; overtimeMinutes: number }
+  >();
+  for (const [dayKey, aggregate] of aggregates.entries()) {
+    const normalizedMinutes = normalizeDailyMinutes(aggregate.totalMinutes);
+    const workingMinutes = Math.min(normalizedMinutes, STANDARD_WORK_MINUTES);
+    const overtimeMinutes = Math.max(0, normalizedMinutes - STANDARD_WORK_MINUTES);
+    dailySummaries.set(dayKey, {
+      workingMinutes,
+      overtimeMinutes,
+    });
+  }
+
   const rows = completedSessions
     .map<ReportRow>((session) => {
-      const rawMinutes =
-        session.durationMin ?? (session.hours != null ? Math.round(session.hours * 60) : null);
-      const candidate = typeof rawMinutes === 'number' ? Math.round(rawMinutes) : 0;
-      const withinBounds = candidate > 0 && candidate < 24 * 60 ? candidate : 0;
-      const { minutes } = applyTimeCalcV2FromMinutes(withinBounds);
       const key = toDayKey(session);
       const aggregate = key ? aggregates.get(key) : undefined;
+      const summary = key ? dailySummaries.get(key) : undefined;
       const siteClientName = session.siteRecordId ? siteClientNames.get(session.siteRecordId) : null;
       const directClientName = normalizeLookupText((session as Record<string, unknown>).clientName);
       const resolvedClientName =
         directClientName ?? aggregate?.clientName ?? siteClientName ?? undefined;
-      const resolvedStart = aggregate?.firstStart ?? session.start ?? null;
-      const resolvedEnd = aggregate?.lastEnd ?? session.end ?? null;
-      const startJst = formatTimestampJst(resolvedStart);
-      const endJst = formatTimestampJst(resolvedEnd);
-      const overtimeHours = formatOvertimeFromSpan(aggregate?.firstStartMs, aggregate?.lastEndMs);
+      const startJst = formatTimestampJst(session.start, session.startMs);
+      const endJst = formatTimestampJst(session.end, session.endMs);
+      const minutes = summary?.workingMinutes ?? 0;
+      const overtimeMinutes = summary?.overtimeMinutes ?? 0;
+      const overtimeHours = formatHoursDecimal(overtimeMinutes);
 
       return {
         year: session.year ?? 0,

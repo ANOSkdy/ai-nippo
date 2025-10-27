@@ -15,7 +15,7 @@ execSync(
 const {
   applyTimeCalcV2FromMinutes,
   applyTimeCalcV2FromHours,
-} = await import('./dist/src/lib/timecalc.js');
+} = await import('./dist/timecalc.js');
 
 process.env.TIME_CALC_VERSION = '2';
 process.env.TIME_CALC_ROUND_MINUTES = '15';

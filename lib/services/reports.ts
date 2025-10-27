@@ -1,7 +1,7 @@
 import { sitesTable, withRetry } from '@/lib/airtable';
 import type { ReportRow } from '@/lib/reports/pair';
 import { fetchSessionReportRows, type SessionReportRow } from '@/src/lib/sessions-reports';
-import { applyTimeCalcV2FromMinutes } from '@/src/lib/timecalc';
+import { normalizeDailyMinutes } from '@/src/lib/timecalc';
 
 type SortKey = 'year' | 'month' | 'day' | 'siteName';
 
@@ -44,6 +44,8 @@ type DailyAggregate = {
   totalMinutes: number;
   clientName?: string | null;
 };
+
+const STANDARD_WORK_MINUTES = 7.5 * 60;
 
 function toDayKey(session: SessionReportRow): string | null {
   if (typeof session.date === 'string' && session.date.trim().length > 0) {
@@ -107,15 +109,6 @@ function formatHoursDecimal(minutes: number): string {
   const safeMinutes = Number.isFinite(minutes) ? Math.max(0, Math.round(minutes)) : 0;
   const hours = safeMinutes / 60;
   return `${hours.toFixed(1)}h`;
-}
-
-function formatOvertimeFromSpan(firstStartMs?: number, lastEndMs?: number): string {
-  if (firstStartMs == null || lastEndMs == null || lastEndMs < firstStartMs) {
-    return '0.0h';
-  }
-  const spanMinutes = Math.max(0, Math.round((lastEndMs - firstStartMs) / 60000));
-  const overtimeMinutes = Math.max(0, spanMinutes - 90 - 450);
-  return formatHoursDecimal(overtimeMinutes);
 }
 
 function formatTimestampJst(value: string | null | undefined): string | null {
@@ -231,15 +224,24 @@ export async function getReportRowsByUserName(
   const aggregates = buildDailyAggregates(completedSessions);
   const siteClientNames = await fetchSiteClientNames(completedSessions);
 
+  const dailySummaries = new Map<
+    string,
+    { minutes: number; overtimeHours: string }
+  >();
+  for (const [dayKey, aggregate] of aggregates.entries()) {
+    const normalizedMinutes = normalizeDailyMinutes(aggregate.totalMinutes);
+    const overtimeMinutes = Math.max(0, normalizedMinutes - STANDARD_WORK_MINUTES);
+    dailySummaries.set(dayKey, {
+      minutes: normalizedMinutes,
+      overtimeHours: formatHoursDecimal(overtimeMinutes),
+    });
+  }
+
   const rows = completedSessions
     .map<ReportRow>((session) => {
-      const rawMinutes =
-        session.durationMin ?? (session.hours != null ? Math.round(session.hours * 60) : null);
-      const candidate = typeof rawMinutes === 'number' ? Math.round(rawMinutes) : 0;
-      const withinBounds = candidate > 0 && candidate < 24 * 60 ? candidate : 0;
-      const { minutes } = applyTimeCalcV2FromMinutes(withinBounds);
       const key = toDayKey(session);
       const aggregate = key ? aggregates.get(key) : undefined;
+      const summary = key ? dailySummaries.get(key) : undefined;
       const siteClientName = session.siteRecordId ? siteClientNames.get(session.siteRecordId) : null;
       const directClientName = normalizeLookupText((session as Record<string, unknown>).clientName);
       const resolvedClientName =
@@ -248,7 +250,8 @@ export async function getReportRowsByUserName(
       const resolvedEnd = aggregate?.lastEnd ?? session.end ?? null;
       const startJst = formatTimestampJst(resolvedStart);
       const endJst = formatTimestampJst(resolvedEnd);
-      const overtimeHours = formatOvertimeFromSpan(aggregate?.firstStartMs, aggregate?.lastEndMs);
+      const minutes = summary?.minutes ?? 0;
+      const overtimeHours = summary?.overtimeHours ?? '0.0h';
 
       return {
         year: session.year ?? 0,

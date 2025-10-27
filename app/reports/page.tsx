@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import ReportsTabs from '@/components/reports/ReportsTabs';
 import { usersTable } from '@/lib/airtable';
-import type { ReportRow } from '@/lib/reports/pair';
-import { getReportRowsByUserName } from '@/lib/services/reports';
-
+import { groupByUserDate, type SessionRecord } from '@/app/(protected)/reports/_lib/groupByUserDate';
+import SessionBreakdown from '@/components/reports/SessionBreakdown';
 import PrintA4Button from '@/components/PrintA4Button';
+import { fetchSessionReportRows, type SessionReportRow } from '@/src/lib/sessions-reports';
 
 import './print-a4.css';
 
@@ -24,15 +24,64 @@ async function fetchUsers(): Promise<string[]> {
   return Array.from(names).sort((a, b) => a.localeCompare(b, 'ja'));
 }
 
-const STANDARD_WORK_MINUTES = 7.5 * 60;
+const dateTimeFormatter = new Intl.DateTimeFormat('ja-JP', {
+  timeZone: 'Asia/Tokyo',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
 
-function formatWorkingHours(minutes: number): string {
-  const safe = Number.isFinite(minutes) ? Math.max(0, Math.round(minutes)) : 0;
-  const clamped = Math.min(safe, STANDARD_WORK_MINUTES);
-  const hours = clamped / 60;
-  const rounded = Math.round(hours * 100) / 100;
-  const text = rounded.toFixed(2).replace(/\.0+$/, '').replace(/\.([1-9])0$/, '.$1');
-  return `${text}h`;
+function formatDateTimeJst(ms: number | null | undefined): string | null {
+  if (ms == null || !Number.isFinite(ms)) {
+    return null;
+  }
+  const date = new Date(ms);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  const parts = dateTimeFormatter.formatToParts(date);
+  const pick = (type: 'year' | 'month' | 'day' | 'hour' | 'minute') =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  const year = pick('year');
+  const month = pick('month');
+  const day = pick('day');
+  const hour = pick('hour');
+  const minute = pick('minute');
+  if (!year || !month || !day || !hour || !minute) {
+    return null;
+  }
+  return `${year}/${month}/${day} ${hour}:${minute}`;
+}
+
+function formatSessionDateTime(raw: string | null | undefined, ms: number | null | undefined): string | null {
+  const formatted = formatDateTimeJst(ms);
+  if (formatted) {
+    return formatted;
+  }
+  const trimmed = typeof raw === 'string' ? raw.trim() : '';
+  return trimmed ? trimmed : null;
+}
+
+function getSessionDatePart(session: SessionReportRow, part: 'year' | 'month' | 'day'): number | null {
+  const direct = session[part];
+  if (typeof direct === 'number' && Number.isFinite(direct)) {
+    return direct;
+  }
+  if (session.date) {
+    const segments = session.date.split('-');
+    const index = part === 'year' ? 0 : part === 'month' ? 1 : 2;
+    const raw = segments[index];
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return null;
 }
 
 function toSingleValue(value: string | string[] | undefined): string {
@@ -68,22 +117,66 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
   };
 
   const users = await fetchUsers();
-  const rowsRaw: ReportRow[] = filters.user ? await getReportRowsByUserName(filters.user) : [];
+  const sessionsRaw: SessionReportRow[] = filters.user
+    ? await fetchSessionReportRows({ userName: filters.user })
+    : [];
 
-  const filteredRows = rowsRaw.filter((row) => {
-    if (filters.year && row.year !== filters.year) return false;
-    if (filters.month && row.month !== filters.month) return false;
-    if (filters.day && row.day !== filters.day) return false;
-    if (filters.site && row.siteName !== filters.site) return false;
+  const completedSessions = sessionsRaw.filter((session) => session.isCompleted && session.date);
+
+  const filteredSessions = completedSessions.filter((session) => {
+    const year = getSessionDatePart(session, 'year');
+    const month = getSessionDatePart(session, 'month');
+    const day = getSessionDatePart(session, 'day');
+    if (filters.year && year !== filters.year) return false;
+    if (filters.month && month !== filters.month) return false;
+    if (filters.day && day !== filters.day) return false;
+    if (filters.site && session.siteName !== filters.site) return false;
     return true;
   });
 
-  const availableYears = Array.from(new Set(rowsRaw.map((row) => row.year))).sort((a, b) => a - b);
-  const availableMonths = Array.from(new Set(rowsRaw.map((row) => row.month))).sort((a, b) => a - b);
-  const availableDays = Array.from(new Set(rowsRaw.map((row) => row.day))).sort((a, b) => a - b);
+  const availableYears = Array.from(
+    new Set(
+      completedSessions
+        .map((session) => getSessionDatePart(session, 'year'))
+        .filter((value): value is number => value != null),
+    ),
+  ).sort((a, b) => a - b);
+  const availableMonths = Array.from(
+    new Set(
+      completedSessions
+        .map((session) => getSessionDatePart(session, 'month'))
+        .filter((value): value is number => value != null),
+    ),
+  ).sort((a, b) => a - b);
+  const availableDays = Array.from(
+    new Set(
+      completedSessions
+        .map((session) => getSessionDatePart(session, 'day'))
+        .filter((value): value is number => value != null),
+    ),
+  ).sort((a, b) => a - b);
   const availableSites = Array.from(
-    new Set(rowsRaw.map((row) => row.siteName).filter((name): name is string => Boolean(name && name.trim()))),
+    new Set(
+      completedSessions
+        .map((session) => session.siteName)
+        .filter((name): name is string => Boolean(name && name.trim())),
+    ),
   ).sort((a, b) => a.localeCompare(b, 'ja'));
+
+  const sessionRecords: SessionRecord[] = filteredSessions.map((session) => ({
+    user: session.userId ?? session.userRecordId ?? session.userName ?? '',
+    date: session.date!,
+    start: formatSessionDateTime(session.start, session.startMs),
+    end: formatSessionDateTime(session.end, session.endMs),
+    durationMin: session.durationMin ?? 0,
+    siteName: session.siteName,
+    workDescription: session.workDescription,
+    machineId: session.machineId ?? session.machineRecordId ?? null,
+    machineName: session.machineName,
+    autoGenerated: session.autoGenerated,
+  }));
+
+  const daily = groupByUserDate(sessionRecords);
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
@@ -225,19 +318,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
               <thead className="bg-gray-50">
                 <tr className="text-sm text-gray-700">
                   <th scope="col" className="px-4 py-3 text-left font-semibold">
-                    年
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left font-semibold">
-                    月
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left font-semibold">
-                    日
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left font-semibold">
-                    現場名
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left font-semibold">
-                    元請・代理人
+                    日付
                   </th>
                   <th scope="col" className="px-4 py-3 text-left font-semibold">
                     始業時間
@@ -246,37 +327,56 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
                     終業時間
                   </th>
                   <th scope="col" className="px-4 py-3 text-left font-semibold">
-                    稼働時間
+                    合計(h)
                   </th>
                   <th scope="col" className="px-4 py-3 text-left font-semibold">
-                    超過
+                    控除後(h)
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left font-semibold">
+                    超過(h)
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left font-semibold">
+                    セッション数
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left font-semibold">
+                    現場数
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left font-semibold">
+                    内訳
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white text-sm text-gray-900">
-                {filteredRows.length === 0 ? (
+                {daily.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-6 text-center text-sm text-gray-500">
                       条件に一致するデータがありません。
                     </td>
                   </tr>
                 ) : (
-                  filteredRows.map((row, index) => (
-                    <tr
-                      key={`${row.year}-${row.month}-${row.day}-${row.siteName}-${index}`}
-                      className="odd:bg-white even:bg-gray-50"
-                    >
-                      <td className="px-4 py-3">{row.year}</td>
-                      <td className="px-4 py-3">{row.month}</td>
-                      <td className="px-4 py-3">{row.day}</td>
-                      <td className="px-4 py-3">{row.siteName}</td>
-                      <td className="px-4 py-3">{row.clientName ?? '-'}</td>
-                      <td className="px-4 py-3">{row.startJst ?? ''}</td>
-                      <td className="px-4 py-3">{row.endJst ?? ''}</td>
-                      <td className="px-4 py-3">{formatWorkingHours(row.minutes)}</td>
-                      <td className="px-4 py-3">{row.overtimeHours ?? '0h'}</td>
-                    </tr>
-                  ))
+                  daily.map((day) => {
+                    const uniqueSites = new Set(
+                      day.sessions
+                        .map((session) => (session.siteName ?? '').trim())
+                        .filter((name) => name.length > 0),
+                    );
+                    const totalHours = day.totalMin / 60;
+                    return (
+                      <tr key={`${day.userKey}-${day.date}`} className="odd:bg-white even:bg-gray-50 print:break-inside-avoid">
+                        <td className="px-4 py-3 whitespace-nowrap">{day.date}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{day.earliestStart ?? ''}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{day.latestEnd ?? ''}</td>
+                        <td className="px-4 py-3 text-right">{totalHours.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right">{day.workedH.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right">{day.overH.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right">{day.sessions.length}</td>
+                        <td className="px-4 py-3 text-right">{uniqueSites.size}</td>
+                        <td className="px-4 py-3 align-top">
+                          <SessionBreakdown sessions={day.sessions} />
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

@@ -1,3 +1,22 @@
+/**
+ * 四半刻(15分)単位の値をそのまま見せるための表示フォーマッタ
+ * - mode: 'h'  -> 1.25h など小数2桁（ぴったりは整数hで表示）
+ *         'hm' -> 1h15m の hh:mm 風表示
+ */
+export function formatQuarterHours(value: number, mode: 'h' | 'hm' = 'h'): string {
+  if (!Number.isFinite(value) || value <= 0) return '';
+  // 念のため値を四半刻へ丸め直して表示（サーバは既にV2で丸め済み）
+  const mins = Math.round(value * 60);
+  const qmins = Math.round(mins / 15) * 15;
+  if (mode === 'hm') {
+    const h = Math.floor(qmins / 60);
+    const m = qmins % 60;
+    return `${h}h${String(m).padStart(2, '0')}m`;
+  }
+  const qhours = qmins / 60;
+  return Number.isInteger(qhours) ? `${qhours}h` : `${qhours.toFixed(2)}h`;
+}
+
 export type SessionRow = {
   user?: string | number;
   machineId?: number | string | null;
@@ -29,13 +48,17 @@ export function toMachineHeader(rowsForUser: SessionRow[]): string {
 }
 
 export function sumColumnHours(rowsForUser: SessionRow[]): number {
-  let totalHours = 0;
+  let totalMinutes = 0;
   for (const row of rowsForUser) {
     if (typeof row.durationMin === 'number') {
-      totalHours += row.durationMin / 60;
+      totalMinutes += row.durationMin;
     } else if (typeof row.hours === 'number') {
-      totalHours += row.hours;
+      totalMinutes += row.hours * 60;
     }
   }
-  return Math.round(totalHours * 10) / 10;
+  if (totalMinutes === 0) {
+    return 0;
+  }
+  const quarterMinutes = Math.round(totalMinutes / 15) * 15;
+  return quarterMinutes / 60;
 }

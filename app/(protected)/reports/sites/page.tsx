@@ -5,9 +5,9 @@ import './sites.css';
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ChangeEvent } from 'react';
 import ReportsTabs from '@/components/reports/ReportsTabs';
 import PrintControls from '@/components/PrintControls';
-import { formatHoursOrEmpty, getJstParts } from '@/lib/jstDate';
+import { getJstParts } from '@/lib/jstDate';
 import MachineCheckboxGroup from './_components/MachineCheckboxGroup';
-import { sumColumnHours, toMachineHeader, type SessionRow } from './_lib/gridUtils';
+import { formatQuarterHours, sumColumnHours, toMachineHeader, type SessionRow } from './_lib/gridUtils';
 
 type SiteMaster = {
   id: string;
@@ -755,7 +755,7 @@ export default function SiteReportPage() {
                             : 'border px-2 py-1 text-right tabular-nums';
                           return (
                             <td key={`${row.date}-${column.key}`} className={className}>
-                              {formatHoursOrEmpty(row.values[index] ?? null)}
+                              {formatQuarterHours(row.values[index])}
                             </td>
                           );
                         })}
@@ -779,7 +779,7 @@ export default function SiteReportPage() {
                         typeof total === 'number' && Number.isFinite(total) ? total : 0;
                       return (
                         <td key={`total-${column.key}`} className={className}>
-                          {safeTotal.toFixed(1)}
+                          {formatQuarterHours(safeTotal)}
                         </td>
                       );
                     })}
@@ -834,7 +834,7 @@ export default function SiteReportPage() {
                                   key={`${row.date}-print-${column.key}`}
                                   className="border px-2 py-1 text-right tabular-nums"
                                 >
-                                  {formatHoursOrEmpty(row.values[index] ?? null)}
+                                  {formatQuarterHours(row.values[index])}
                                 </td>
                               ))}
                             </tr>
@@ -854,7 +854,7 @@ export default function SiteReportPage() {
                                 key={`print-total-${column.key}`}
                                 className="border px-2 py-1 text-right tabular-nums font-semibold"
                               >
-                                {safeTotal.toFixed(1)}
+                                {formatQuarterHours(safeTotal)}
                               </td>
                             );
                           })}

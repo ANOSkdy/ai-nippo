@@ -50,6 +50,14 @@
     padding: 4px 6px;
   }
 
+  .report-print .badge-auto {
+    border-color: #000 !important;
+    background: #000 !important;
+    box-shadow: 0 0 0 2px #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /* 小数点・数字の見やすさ向上（任意） */
   .report-print .num {
     text-align: right;

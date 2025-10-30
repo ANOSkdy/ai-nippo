@@ -28,10 +28,12 @@ export default function ActionBar({ params, hasData }: ActionBarProps) {
   };
 
   const downloadExcel = async () => {
+    const payload = { ...params };
+    delete payload.auto;
     const response = await fetch('/api/reports/export/excel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) {
       const data = (await response.json().catch(() => null)) as { message?: string } | null;
@@ -42,10 +44,12 @@ export default function ActionBar({ params, hasData }: ActionBarProps) {
   };
 
   const downloadPdf = async () => {
+    const payload = { ...params };
+    delete payload.auto;
     const response = await fetch('/api/reports/export/pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'personal', ...params }),
+      body: JSON.stringify({ type: 'personal', ...payload }),
     });
     if (!response.ok) {
       const data = (await response.json().catch(() => null)) as { message?: string } | null;

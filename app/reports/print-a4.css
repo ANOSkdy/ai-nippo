@@ -52,9 +52,8 @@
 
   .report-print .badge-auto {
     border-color: #000 !important;
-    background: #fff !important;
-    color: #000 !important;
-    font-weight: 600;
+    background: #000 !important;
+    box-shadow: 0 0 0 2px #fff !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

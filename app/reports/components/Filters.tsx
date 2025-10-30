@@ -8,6 +8,7 @@ export type FiltersValue = {
   sitename?: string;
   username?: string;
   machinename?: string;
+  auto?: 'all' | 'only' | 'exclude';
 };
 
 export type FiltersOptions = {

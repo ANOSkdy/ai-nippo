@@ -2,6 +2,28 @@
   @apply h-full;
 }
 
+.activity-calendar-grid {
+  display: grid;
+  grid-template-rows: auto repeat(6, minmax(7rem, 1fr));
+}
+
+.calendar-weekday-header {
+  @apply h-full rounded-2xl bg-brand-surface px-2 py-1 text-center text-xs font-semibold text-brand-muted;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendar-weekday-header.sunday {
+  background-color: rgba(248, 113, 113, 0.2);
+  color: rgba(220, 38, 38, 0.9);
+}
+
+.calendar-weekday-header.saturday {
+  background-color: rgba(96, 165, 250, 0.2);
+  color: rgba(29, 78, 216, 0.9);
+}
+
 .calendar-cell {
   @apply w-full rounded-2xl border border-brand-border bg-brand-surfaceAlt p-2 text-left text-[12px] text-brand-muted shadow-sm transition;
 }
@@ -16,6 +38,14 @@
   background-color: var(--color-focus-soft);
 }
 
+.calendar-cell.sunday:not(.active):not(.today) {
+  background-color: rgba(248, 113, 113, 0.15);
+}
+
+.calendar-cell.saturday:not(.active):not(.today) {
+  background-color: rgba(96, 165, 250, 0.15);
+}
+
 .calendar-cell:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 3px;
@@ -23,6 +53,14 @@
 
 .calendar-cell.empty {
   @apply h-28 rounded-2xl bg-brand-surface;
+}
+
+.calendar-cell.empty.sunday {
+  background-color: rgba(248, 113, 113, 0.08);
+}
+
+.calendar-cell.empty.saturday {
+  background-color: rgba(96, 165, 250, 0.08);
 }
 
 .site-names {

@@ -25,10 +25,7 @@ const MachineTag: React.FC<MachineTagProps> = ({ id, name, className }) => {
   const label = normalizedName ? `${normalizedId} | ${normalizedName}` : normalizedId;
 
   return (
-    <span
-      className={joinClassNames('max-w-[280px] truncate text-sm font-mono text-brand-text', className)}
-      title={label}
-    >
+    <span className={joinClassNames('max-w-[280px] truncate text-sm text-brand-text', className)} title={label}>
       {label}
     </span>
   );

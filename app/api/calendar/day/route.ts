@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { buildDayDetail, getLogsBetween } from '@/lib/airtable/logs';
+import { LOG_FIELDS } from '@/lib/airtable/schema';
 
 export const runtime = 'nodejs';
 
@@ -100,10 +101,16 @@ export async function GET(req: NextRequest) {
       'username',
     ] as const;
     const machineLookupCandidates = [
-      'machineId',
-      'machineid',
-      'machineId (from machine)',
-      'machineid (from machine)',
+      LOG_FIELDS.machineId,
+      LOG_FIELDS.machineid,
+      LOG_FIELDS.machineIdFromMachine,
+      LOG_FIELDS.machineidFromMachine,
+    ] as const;
+    const machineNameLookupCandidates = [
+      LOG_FIELDS.machineName,
+      LOG_FIELDS.machinename,
+      LOG_FIELDS.machineNameFromMachine,
+      LOG_FIELDS.machinenameFromMachine,
     ] as const;
 
     const readLookup = (
@@ -139,12 +146,22 @@ export async function GET(req: NextRequest) {
       const machineId =
         readLookup(startLog?.rawFields, machineLookupCandidates, normalizeMachineId) ??
         readLookup(endLog?.rawFields, machineLookupCandidates, normalizeMachineId) ??
+        normalizeMachineId(startLog?.machineId) ??
+        normalizeMachineId(endLog?.machineId) ??
+        null;
+
+      const machineName =
+        normalizeLookupText(startLog?.machineName) ??
+        readLookup(startLog?.rawFields, machineNameLookupCandidates, normalizeLookupText) ??
+        readLookup(endLog?.rawFields, machineNameLookupCandidates, normalizeLookupText) ??
+        normalizeLookupText(endLog?.machineName) ??
         null;
 
       return {
         ...session,
         userName,
         machineId,
+        machineName,
       };
     });
 

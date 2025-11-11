@@ -204,13 +204,17 @@ export function groupReportRowsByDate(rows: ReportRow[]): ReportRowGroup[] {
     const computedItems: ReportRowWithStats[] = decorated.map((item, index) => {
       const applyBreak = hasBreakTarget && index === breakTargetIndex;
       const base = applyBreak ? Math.max(0, item.rawDurationMinutes - breakMinutes) : item.rawDurationMinutes;
-      const working = roundMinutes(base, roundingEnabled, roundStep, roundMode);
-      const overtimeRaw = working > STANDARD_WORK_MINUTES ? working - STANDARD_WORK_MINUTES : 0;
-      const overtime = roundMinutes(overtimeRaw, roundingEnabled, roundStep, roundMode);
+      const roundedWorking = roundMinutes(base, roundingEnabled, roundStep, roundMode);
+      const overtimeRaw = Math.max(0, roundedWorking - STANDARD_WORK_MINUTES);
+      const roundedOvertime = roundMinutes(overtimeRaw, roundingEnabled, roundStep, roundMode);
+      const displayWorking = Math.max(
+        0,
+        Math.min(STANDARD_WORK_MINUTES, roundedWorking - roundedOvertime),
+      );
       return {
         ...(item.row as ReportRow),
-        workingMinutes: working,
-        overtimeMinutes: overtime,
+        workingMinutes: displayWorking,
+        overtimeMinutes: roundedOvertime,
         rawDurationMinutes: item.rawDurationMinutes,
       } satisfies ReportRowWithStats;
     });
@@ -221,11 +225,15 @@ export function groupReportRowsByDate(rows: ReportRow[]): ReportRowGroup[] {
       const spanAfterBreak = Math.max(0, spanMinutes - breakMinutes);
       summaryWorkingMinutes = roundMinutes(spanAfterBreak, roundingEnabled, roundStep, roundMode);
     }
-    const summaryOvertimeRaw = summaryWorkingMinutes > STANDARD_WORK_MINUTES ? summaryWorkingMinutes - STANDARD_WORK_MINUTES : 0;
+    const summaryOvertimeRaw = Math.max(0, summaryWorkingMinutes - STANDARD_WORK_MINUTES);
     const summaryOvertimeMinutes = roundMinutes(summaryOvertimeRaw, roundingEnabled, roundStep, roundMode);
+    const summaryWorkingDisplay = Math.max(
+      0,
+      Math.min(STANDARD_WORK_MINUTES, summaryWorkingMinutes - summaryOvertimeMinutes),
+    );
 
     group.items = computedItems;
-    group.totalWorkingMinutes = summaryWorkingMinutes;
+    group.totalWorkingMinutes = summaryWorkingDisplay;
     group.totalOvertimeMinutes = summaryOvertimeMinutes;
     group.startJst = earliestStartLabel ?? formatTimeFromMs(earliestStartMs);
     group.endJst = latestEndLabel ?? formatTimeFromMs(latestEndMs);

@@ -58,12 +58,16 @@ function toAutoFilter(value: string): AutoFilter | undefined {
   return undefined;
 }
 
-function formatWorkingHours(minutes: number): string {
+function formatQuarterHours(minutes: number): string {
   const safe = Number.isFinite(minutes) ? Math.max(0, Math.round(minutes)) : 0;
-  const hours = safe / 60;
-  const rounded = Math.round(hours * 100) / 100;
-  const text = rounded.toFixed(2).replace(/\.0+$/, '').replace(/\.([1-9])0$/, '.$1');
+  const quarters = Math.round(safe / 15);
+  const hours = quarters / 4;
+  const text = hours.toFixed(2).replace(/\.0+$/, '').replace(/\.([1-9])0$/, '.$1');
   return `${text}h`;
+}
+
+function formatWorkingHours(minutes: number): string {
+  return formatQuarterHours(minutes);
 }
 
 function formatTotalWorkHours(hours: number): string {
@@ -77,8 +81,7 @@ function groupTotalMinutes(group: ReportRowGroup): number {
 }
 
 function formatHoursFromMinutes(minutes: number): string {
-  const hours = minutes / 60;
-  return formatTotalWorkHours(hours);
+  return formatQuarterHours(minutes);
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams?: SearchParams }) {

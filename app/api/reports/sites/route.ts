@@ -141,6 +141,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const rawMinutes =
+      session.durationMin ?? (session.hours != null ? Math.round(session.hours * 60) : null);
+    const minutes = typeof rawMinutes === 'number' ? Math.round(rawMinutes) : 0;
+    if (minutes <= 0 || minutes >= 24 * 60) {
+      continue;
+    }
+
     const workDescription = session.workDescription?.trim() || '（未設定）';
 
     const userName = session.userName?.trim() || '不明ユーザー';
@@ -172,13 +179,6 @@ export async function GET(req: NextRequest) {
     const machineName = machineNameValue;
     if (!column.machineName && machineName) {
       column.machineName = machineName;
-    }
-
-    const rawMinutes =
-      session.durationMin ?? (session.hours != null ? Math.round(session.hours * 60) : null);
-    const minutes = typeof rawMinutes === 'number' ? Math.round(rawMinutes) : 0;
-    if (minutes <= 0 || minutes >= 24 * 60) {
-      continue;
     }
 
     const groupKey = `${session.date}|${columnKey}`;

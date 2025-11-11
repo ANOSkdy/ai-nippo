@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Cha
 import ReportsTabs from '@/components/reports/ReportsTabs';
 import PrintControls from '@/components/PrintControls';
 import { getJstParts } from '@/lib/jstDate';
+import MachineTag from '@/components/MachineTag';
 import MachineCheckboxGroup from './_components/MachineCheckboxGroup';
 import { formatQuarterHours, sumColumnHours, toMachineHeader, type SessionRow } from './_lib/gridUtils';
 
@@ -471,7 +472,7 @@ export default function SiteReportPage() {
     return map;
   }, [columns]);
 
-  const getMachineLabel = useCallback(
+  const getMachineRefs = useCallback(
     (columnKey: string) => {
       const rows = sessionRowsByColumnKey.get(columnKey) ?? [];
       return toMachineHeader(rows);
@@ -730,9 +731,22 @@ export default function SiteReportPage() {
                       const className = hidden
                         ? 'border px-2 py-1 text-left screen-hidden'
                         : 'border px-2 py-1 text-left';
+                      const machines = getMachineRefs(column.key);
                       return (
                         <th key={`work-${column.key}`} className={className}>
-                          {getMachineLabel(column.key)}
+                          <div className="flex flex-wrap gap-x-3 gap-y-1">
+                            {machines.length > 0 ? (
+                              machines.map((machine) => (
+                                <MachineTag
+                                  key={machine.machineId}
+                                  id={machine.machineId}
+                                  name={machine.machineName ?? null}
+                                />
+                              ))
+                            ) : (
+                              <MachineTag />
+                            )}
+                          </div>
                         </th>
                       );
                     })}
@@ -815,11 +829,26 @@ export default function SiteReportPage() {
                         <tr className="bg-gray-50">
                           <th className="col-narrow border px-2 py-1" />
                           <th className="col-narrow border px-2 py-1" />
-                          {chunk.map(({ column }) => (
-                            <th key={`print-work-${column.key}`} className="border px-2 py-1 text-left">
-                              {getMachineLabel(column.key)}
-                            </th>
-                          ))}
+                          {chunk.map(({ column }) => {
+                            const machines = getMachineRefs(column.key);
+                            return (
+                              <th key={`print-work-${column.key}`} className="border px-2 py-1 text-left">
+                                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                  {machines.length > 0 ? (
+                                    machines.map((machine) => (
+                                      <MachineTag
+                                        key={machine.machineId}
+                                        id={machine.machineId}
+                                        name={machine.machineName ?? null}
+                                      />
+                                    ))
+                                  ) : (
+                                    <MachineTag />
+                                  )}
+                                </div>
+                              </th>
+                            );
+                          })}
                         </tr>
                       </thead>
                       <tbody>

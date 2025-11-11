@@ -1,3 +1,5 @@
+import { compareMachineId, type MachineRef } from '@/lib/utils/sort';
+
 /**
  * 四半刻(15分)単位の値をそのまま見せるための表示フォーマッタ
  * - mode: 'h'  -> 1.25h など小数2桁（ぴったりは整数hで表示）
@@ -26,25 +28,44 @@ export type SessionRow = {
   date?: string;
 };
 
-export function toMachineHeader(rowsForUser: SessionRow[]): string {
-  const uniq = new Map<string, { id?: string | number | null; name?: string | null }>();
+export function toMachineHeader(rowsForUser: SessionRow[]): MachineRef[] {
+  const uniq = new Map<string, MachineRef>();
   for (const row of rowsForUser) {
-    const id = row.machineId == null ? '' : String(row.machineId);
-    const name = row.machineName ?? null;
-    const key = `${id}::${name ?? ''}`;
-    if (!uniq.has(key)) {
-      uniq.set(key, { id: id || null, name });
+    const idRaw = row.machineId == null ? '' : String(row.machineId).trim();
+    const nameRaw = typeof row.machineName === 'string' ? row.machineName.trim() : '';
+    if (!idRaw) {
+      continue;
+    }
+    const existing = uniq.get(idRaw);
+    if (!existing) {
+      uniq.set(idRaw, { machineId: idRaw, machineName: nameRaw || null });
+      continue;
+    }
+    if (!existing.machineName && nameRaw) {
+      uniq.set(idRaw, { machineId: idRaw, machineName: nameRaw });
     }
   }
-  const arr = [...uniq.values()].filter((item) => item.id || item.name);
-  if (arr.length === 0) {
-    return '';
-  }
-  if (arr.length === 1) {
-    const { id, name } = arr[0];
-    return `${id ?? ''}${name ? `（${name}）` : ''}`;
-  }
-  return '複数';
+  const arr = [...uniq.values()];
+  arr.sort((a, b) => {
+    const diff = compareMachineId(a, b);
+    if (diff !== 0) {
+      return diff;
+    }
+    const nameA = a.machineName ?? '';
+    const nameB = b.machineName ?? '';
+    if (nameA && nameB) {
+      const nameDiff = nameA.localeCompare(nameB, 'ja');
+      if (nameDiff !== 0) {
+        return nameDiff;
+      }
+    } else if (nameA) {
+      return -1;
+    } else if (nameB) {
+      return 1;
+    }
+    return 0;
+  });
+  return arr;
 }
 
 export function sumColumnHours(rowsForUser: SessionRow[]): number {

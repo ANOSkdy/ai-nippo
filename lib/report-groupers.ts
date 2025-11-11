@@ -1,124 +1,107 @@
-export type ReportLog = {
-  id: string;
-  userId: string;
-  userName?: string | null;
-  startAt?: string | null;
-  endAt?: string | null;
-  date?: string | null;
-  siteId?: string | null;
-  siteName?: string | null;
-  machine?: { machineId?: string | null; machineName?: string | null } | null;
-  workType?: string | null;
-  durationMinutes?: number | null;
-};
+import type { ReportRow } from '@/lib/reports/pair';
 
-export type UserDateGroup = {
+export const STANDARD_WORK_MINUTES = 7.5 * 60;
+
+export type ReportRowGroup = {
   key: string;
-  date: string;
-  userId: string;
-  userName?: string | null;
-  totalMinutes: number;
+  year: number;
+  month: number;
+  day: number;
+  dateLabel: string;
+  totalWorkingMinutes: number;
+  totalOvertimeMinutes: number;
   count: number;
-  items: ReportLog[];
+  items: ReportRow[];
 };
 
-function toDateYMD(iso?: string | null): string {
-  if (!iso) return '';
-  const timestamp = Date.parse(iso);
-  if (Number.isNaN(timestamp)) {
-    return '';
-  }
-  try {
-    return new Date(timestamp).toISOString().slice(0, 10);
-  } catch {
-    return '';
-  }
-}
-
-function diffMinutes(startIso?: string | null, endIso?: string | null): number {
-  if (!startIso || !endIso) return 0;
-  const startMs = Date.parse(startIso);
-  const endMs = Date.parse(endIso);
-  if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
+export function normalizeWorkingMinutes(minutes: number | null | undefined): number {
+  if (minutes == null) {
     return 0;
   }
-  return Math.max(0, Math.round((endMs - startMs) / 60000));
+  const safe = Number.isFinite(minutes) ? Math.max(0, Math.round(minutes)) : 0;
+  return Math.min(safe, STANDARD_WORK_MINUTES);
 }
 
-function resolveMinutes(log: ReportLog): number {
-  if (log.durationMinutes != null && Number.isFinite(log.durationMinutes)) {
-    return Math.max(0, Math.round(log.durationMinutes));
+function parseOvertimeMinutes(value: string | null | undefined): number {
+  if (!value) {
+    return 0;
   }
-  return diffMinutes(log.startAt, log.endAt);
+  const normalized = value.trim().replace(/h$/i, '');
+  if (!normalized) {
+    return 0;
+  }
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+  return Math.max(0, Math.round(parsed * 60));
 }
 
-function sortItems(items: ReportLog[]): ReportLog[] {
+function toKey(row: ReportRow): string | null {
+  const { year, month, day } = row;
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+  const y = String(year).padStart(4, '0');
+  const m = String(month).padStart(2, '0');
+  const d = String(day).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function sortGroupItems(items: ReportRow[]): ReportRow[] {
   return [...items].sort((a, b) => {
-    const aStart = a.startAt ?? '';
-    const bStart = b.startAt ?? '';
-    if (aStart && bStart) {
-      const result = aStart.localeCompare(bStart);
-      if (result !== 0) {
-        return result;
-      }
-    } else if (aStart) {
-      return -1;
-    } else if (bStart) {
-      return 1;
+    const aStart = a.startJst ?? '';
+    const bStart = b.startJst ?? '';
+    if (aStart && bStart && aStart !== bStart) {
+      return aStart.localeCompare(bStart, 'ja');
     }
-    const aEnd = a.endAt ?? '';
-    const bEnd = b.endAt ?? '';
-    if (aEnd && bEnd) {
-      return aEnd.localeCompare(bEnd);
+    const aEnd = a.endJst ?? '';
+    const bEnd = b.endJst ?? '';
+    if (aEnd && bEnd && aEnd !== bEnd) {
+      return aEnd.localeCompare(bEnd, 'ja');
     }
-    if (aEnd) return -1;
-    if (bEnd) return 1;
-    return a.id.localeCompare(b.id);
+    return 0;
   });
 }
 
-export function groupByUserDate(logs: ReportLog[]): UserDateGroup[] {
-  const map = new Map<string, UserDateGroup>();
+export function groupReportRowsByDate(rows: ReportRow[]): ReportRowGroup[] {
+  const map = new Map<string, ReportRowGroup>();
 
-  for (const log of logs ?? []) {
-    if (!log.userId) {
+  for (const row of rows ?? []) {
+    const key = toKey(row);
+    if (!key) {
       continue;
     }
-    const date = log.date || toDateYMD(log.startAt) || toDateYMD(log.endAt);
-    if (!date) {
-      continue;
-    }
-    const key = `${date}|${log.userId}`;
-    const group = map.get(key) ?? {
+    const entry = map.get(key) ?? {
       key,
-      date,
-      userId: log.userId,
-      userName: log.userName,
-      totalMinutes: 0,
+      year: row.year,
+      month: row.month,
+      day: row.day,
+      dateLabel: key,
+      totalWorkingMinutes: 0,
+      totalOvertimeMinutes: 0,
       count: 0,
       items: [],
-    };
-    group.items.push(log);
-    group.count += 1;
-    group.totalMinutes += resolveMinutes(log);
-    if (!group.userName && log.userName) {
-      group.userName = log.userName;
-    }
-    map.set(key, group);
+    } satisfies ReportRowGroup;
+
+    entry.items.push(row);
+    entry.count += 1;
+    entry.totalWorkingMinutes += normalizeWorkingMinutes(row.minutes);
+    entry.totalOvertimeMinutes += parseOvertimeMinutes(row.overtimeHours);
+
+    map.set(key, entry);
   }
 
   const groups = Array.from(map.values());
   groups.forEach((group) => {
-    group.items = sortItems(group.items);
+    group.items = sortGroupItems(group.items);
   });
 
   groups.sort((a, b) => {
-    if (a.date !== b.date) {
-      return a.date < b.date ? 1 : -1;
+    if (a.key === b.key) {
+      return 0;
     }
-    const nameA = a.userName ?? a.userId;
-    const nameB = b.userName ?? b.userId;
-    return nameA.localeCompare(nameB, 'ja');
+    return a.key < b.key ? 1 : -1;
   });
 
   return groups;

@@ -1,11 +1,16 @@
 import Link from 'next/link';
 
 import ReportsTabs from '@/components/reports/ReportsTabs';
-import { usersTable } from '@/lib/airtable';
 import PrintA4Button from '@/components/PrintA4Button';
-import { groupByUserDate, type ReportLog } from '@/lib/report-groupers';
-import { formatMinutes, fmtDate, fmtTime } from '@/lib/format';
-import { fetchSessionReportRows, type SessionReportRow } from '@/src/lib/sessions-reports';
+import { usersTable } from '@/lib/airtable';
+import type { ReportRow } from '@/lib/reports/pair';
+import { getReportRowsByUserName } from '@/lib/services/reports';
+import { formatMinutes } from '@/lib/format';
+import {
+  groupReportRowsByDate,
+  normalizeWorkingMinutes,
+  type ReportRowGroup,
+} from '@/lib/report-groupers';
 
 import './print-a4.css';
 
@@ -57,44 +62,47 @@ function toAutoFilter(value: string): AutoFilter | undefined {
   return undefined;
 }
 
-function toReportLog(session: SessionReportRow): ReportLog {
-  const userIdCandidate =
-    session.userRecordId ??
-    (session.userId != null ? String(session.userId) : session.userName ?? session.id);
-  const userId = userIdCandidate || session.id;
-  const machineId = typeof session.machineId === 'string' ? session.machineId.trim() : '';
-  const machineName = typeof session.machineName === 'string' ? session.machineName.trim() : '';
-  const machine = machineId || machineName ? { machineId, machineName } : null;
-
-  return {
-    id: session.id,
-    userId,
-    userName: session.userName,
-    startAt: session.start,
-    endAt: session.end,
-    date: session.date,
-    siteId: session.siteRecordId,
-    siteName: session.siteName,
-    machine,
-    workType: session.workDescription,
-    durationMinutes: session.durationMin,
-  } satisfies ReportLog;
+function formatWorkingHours(minutes: number): string {
+  const clamped = normalizeWorkingMinutes(minutes);
+  const hours = clamped / 60;
+  const rounded = Math.round(hours * 100) / 100;
+  const text = rounded.toFixed(2).replace(/\.0+$/, '').replace(/\.([1-9])0$/, '.$1');
+  return `${text}h`;
 }
 
-function formatMachine(log: ReportLog): { text: string; title?: string } {
-  const rawId = log.machine?.machineId ?? null;
-  const rawName = log.machine?.machineName ?? null;
-  const idText = typeof rawId === 'string' ? rawId.trim() : '';
-  const nameText = typeof rawName === 'string' ? rawName.trim() : '';
-  if (!idText && !nameText) {
-    return { text: '—' };
+function coerceHours(value: unknown): number {
+  if (value == null) return 0;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0;
   }
-  if (idText && nameText) {
-    const combined = `${idText} | ${nameText}`;
-    return { text: combined, title: combined };
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return 0;
+    const normalized = trimmed.replace(',', '.').replace(/[^\d.\-]/g, '');
+    if (!normalized) return 0;
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
-  const text = nameText || idText;
-  return { text, title: text };
+  return 0;
+}
+
+function sumWorkHours<T>(rows: T[], accessor: (row: T) => unknown): number {
+  return rows.reduce((total, row) => total + coerceHours(accessor(row)), 0);
+}
+
+function formatTotalWorkHours(hours: number): string {
+  const safe = Number.isFinite(hours) ? hours : 0;
+  const rounded = Math.round(safe * 10) / 10;
+  return `${rounded.toFixed(1)}h`;
+}
+
+function groupTotalMinutes(group: ReportRowGroup): number {
+  return group.totalWorkingMinutes + group.totalOvertimeMinutes;
+}
+
+function formatHoursFromMinutes(minutes: number): string {
+  const hours = minutes / 60;
+  return formatTotalWorkHours(hours);
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams?: SearchParams }) {
@@ -109,60 +117,38 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
   };
 
   const users = await fetchUsers();
-  const sessionsRaw: SessionReportRow[] = filters.user
-    ? await fetchSessionReportRows({ userName: filters.user })
-    : [];
+  const rowsRaw: ReportRow[] = filters.user ? await getReportRowsByUserName(filters.user) : [];
 
-  const availableYears = Array.from(
-    new Set(
-      sessionsRaw
-        .map((session) => session.year)
-        .filter((value): value is number => Number.isInteger(value)),
-    ),
-  ).sort((a, b) => a - b);
-
-  const availableMonths = Array.from(
-    new Set(
-      sessionsRaw
-        .map((session) => session.month)
-        .filter((value): value is number => Number.isInteger(value)),
-    ),
-  ).sort((a, b) => a - b);
-
-  const availableDays = Array.from(
-    new Set(
-      sessionsRaw
-        .map((session) => session.day)
-        .filter((value): value is number => Number.isInteger(value)),
-    ),
-  ).sort((a, b) => a - b);
-
-  const availableSites = Array.from(
-    new Set(
-      sessionsRaw
-        .map((session) => (typeof session.siteName === 'string' ? session.siteName.trim() : ''))
-        .filter((name): name is string => Boolean(name)),
-    ),
-  ).sort((a, b) => a.localeCompare(b, 'ja'));
-
-  const filteredSessions = sessionsRaw.filter((session) => {
-    if (!session.isCompleted) return false;
-    if (!session.date) return false;
-    if (filters.auto === 'only' && !session.autoGenerated) return false;
-    if (filters.auto === 'exclude' && session.autoGenerated) return false;
-    if (filters.year && session.year !== filters.year) return false;
-    if (filters.month && session.month !== filters.month) return false;
-    if (filters.day && session.day !== filters.day) return false;
-    const siteName = typeof session.siteName === 'string' ? session.siteName.trim() : '';
-    if (filters.site && siteName !== filters.site) return false;
+  const filteredRows = rowsRaw.filter((row) => {
+    if (filters.auto === 'only' && !row.autoGenerated) return false;
+    if (filters.auto === 'exclude' && row.autoGenerated) return false;
+    if (filters.year && row.year !== filters.year) return false;
+    if (filters.month && row.month !== filters.month) return false;
+    if (filters.day && row.day !== filters.day) return false;
+    if (filters.site && row.siteName !== filters.site) return false;
     return true;
   });
 
-  const reportLogs = filteredSessions.map(toReportLog);
-  const groups = groupByUserDate(reportLogs);
-  const totalMinutes = groups.reduce((sum, group) => sum + group.totalMinutes, 0);
-  const totalRecords = groups.reduce((sum, group) => sum + group.count, 0);
-  const autoCount = filteredSessions.filter((session) => session.autoGenerated).length;
+  const autoCount = filteredRows.filter((row) => row.autoGenerated).length;
+  const totalBaseHours = sumWorkHours(filteredRows, (row) => {
+    const minutes = normalizeWorkingMinutes(row.minutes);
+    return minutes / 60;
+  });
+  const totalOvertimeHours = sumWorkHours(filteredRows, (row) => row.overtimeHours ?? '0h');
+  const totalDisplayedHours = totalBaseHours + totalOvertimeHours;
+  const totalWorkHoursText = formatTotalWorkHours(totalDisplayedHours);
+  const totalOvertimeHoursText = formatTotalWorkHours(totalOvertimeHours);
+
+  const groups = groupReportRowsByDate(filteredRows);
+  const overallMinutes = groups.reduce((sum, group) => sum + groupTotalMinutes(group), 0);
+  const totalRecords = filteredRows.length;
+
+  const availableYears = Array.from(new Set(rowsRaw.map((row) => row.year))).sort((a, b) => a - b);
+  const availableMonths = Array.from(new Set(rowsRaw.map((row) => row.month))).sort((a, b) => a - b);
+  const availableDays = Array.from(new Set(rowsRaw.map((row) => row.day))).sort((a, b) => a - b);
+  const availableSites = Array.from(
+    new Set(rowsRaw.map((row) => row.siteName).filter((name): name is string => Boolean(name && name.trim()))),
+  ).sort((a, b) => a.localeCompare(b, 'ja'));
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
@@ -309,7 +295,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
         </form>
 
         <div className="flex items-center justify-between text-xs text-gray-500 _print-hidden">
-          <span>※ サマリーは日付×従業員で折りたたみ表示されます。必要に応じて上部のフィルターをご利用ください。</span>
+          <span>※ グリッドの列構成・表記は現行と同じです。必要に応じて上部のフィルターをご利用ください。</span>
           <Link href="/reports" className="text-indigo-600 underline">
             条件をクリア
           </Link>
@@ -318,13 +304,21 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
         {filters.user && (
           <section className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-gray-50 px-4 py-3 text-sm text-gray-700">
-              <span>
-                合計時間: <strong className="tabular-nums">{formatMinutes(totalMinutes)}</strong> / 計{' '}
-                <strong className="tabular-nums">{totalRecords}</strong>件
-              </span>
-              {autoCount > 0 ? (
-                <span className="text-xs text-gray-500">自動退勤 {autoCount} 件を含みます</span>
-              ) : null}
+              <div className="space-x-2">
+                <span>
+                  合計時間: <strong className="tabular-nums">{formatMinutes(overallMinutes)}</strong>
+                </span>
+                <span className="text-xs text-gray-500">(表示: {totalWorkHoursText})</span>
+                <span className="text-xs text-gray-500">超過: {totalOvertimeHoursText}</span>
+              </div>
+              <div className="space-x-2">
+                <span>
+                  計 <strong className="tabular-nums">{totalRecords}</strong>件
+                </span>
+                {autoCount > 0 ? (
+                  <span className="text-xs text-gray-500">自動退勤 {autoCount} 件を含みます</span>
+                ) : null}
+              </div>
             </div>
 
             {groups.length === 0 ? (
@@ -334,43 +328,104 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
             ) : (
               <div className="space-y-3">
                 {groups.map((group) => {
+                  const summaryMinutes = groupTotalMinutes(group);
+                  const groupOvertimeText = formatHoursFromMinutes(group.totalOvertimeMinutes);
+                  const groupTotalHoursText = formatHoursFromMinutes(summaryMinutes);
+                  const groupAutoCount = group.items.filter((item) => item.autoGenerated).length;
+
                   return (
                     <details key={group.key} className="rounded border bg-white">
                       <summary className="flex cursor-pointer items-center gap-4 px-4 py-3">
-                        <span className="w-32 text-sm font-medium text-gray-900">{fmtDate(group.date)}</span>
-                        <span className="flex-1 truncate text-sm text-gray-700">{group.userName ?? group.userId}</span>
-                        <span className="w-28 text-right text-sm font-semibold text-gray-900 tabular-nums">
-                          {formatMinutes(group.totalMinutes)}
+                        <span className="w-32 text-sm font-medium text-gray-900">{group.dateLabel}</span>
+                        <span className="flex-1 truncate text-sm text-gray-700">{filters.user || '—'}</span>
+                        <span className="w-32 text-right text-sm font-semibold text-gray-900 tabular-nums">
+                          {formatMinutes(summaryMinutes)}
                         </span>
                         <span className="w-20 text-right text-sm text-gray-600 tabular-nums">{group.count}件</span>
                       </summary>
-                      <div className="border-t px-4 py-3">
-                        <table className="w-full table-auto text-sm">
-                          <thead>
-                            <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
-                              <th className="pb-2">開始</th>
-                              <th className="pb-2">終了</th>
-                              <th className="pb-2">サイト</th>
-                              <th className="pb-2">機械</th>
-                              <th className="pb-2">作業</th>
+                      <div className="space-y-3 border-t px-4 py-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
+                          <span>稼働合計 (表示): {groupTotalHoursText}</span>
+                          <span>超過: {groupOvertimeText}</span>
+                          {groupAutoCount > 0 ? (
+                            <span className="text-xs text-gray-500">自動退勤 {groupAutoCount} 件</span>
+                          ) : null}
+                        </div>
+                        <table className="min-w-full divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr className="text-sm text-gray-700">
+                              <th scope="col" className="px-4 py-3 text-left font-semibold">
+                                年
+                              </th>
+                              <th scope="col" className="px-4 py-3 text-left font-semibold">
+                                月
+                              </th>
+                              <th scope="col" className="px-4 py-3 text-left font-semibold">
+                                日
+                              </th>
+                              <th scope="col" className="px-4 py-3 text-left font-semibold">
+                                現場名
+                              </th>
+                              <th scope="col" className="px-4 py-3 text-left font-semibold">
+                                元請・代理人
+                              </th>
+                              <th scope="col" className="px-4 py-3 text-left font-semibold">
+                                始業時間
+                              </th>
+                              <th scope="col" className="px-4 py-3 text-left font-semibold">
+                                終業時間
+                              </th>
+                              <th scope="col" className="px-4 py-3 text-left font-semibold">
+                                稼働時間
+                              </th>
+                              <th scope="col" className="px-4 py-3 text-left font-semibold">
+                                超過
+                              </th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-gray-200 text-gray-900">
-                            {group.items.map((item) => {
-                              const machine = formatMachine(item);
-                              return (
-                                <tr key={item.id}>
-                                  <td className="py-2 pr-4 tabular-nums">{fmtTime(item.startAt)}</td>
-                                  <td className="py-2 pr-4 tabular-nums">{fmtTime(item.endAt)}</td>
-                                  <td className="py-2 pr-4">{item.siteName ?? item.siteId ?? '—'}</td>
-                                  <td className="py-2 pr-4">
-                                    <span title={machine.title}>{machine.text}</span>
-                                  </td>
-                                  <td className="py-2">{item.workType ?? '—'}</td>
-                                </tr>
-                              );
-                            })}
+                          <tbody className="divide-y divide-gray-200 bg-white text-sm text-gray-900">
+                            {group.items.map((row, index) => (
+                              <tr
+                                key={`${row.year}-${row.month}-${row.day}-${row.siteName}-${index}`}
+                                className="odd:bg-white even:bg-gray-50"
+                              >
+                                <td className="px-4 py-3">{row.year}</td>
+                                <td className="px-4 py-3">{row.month}</td>
+                                <td className="px-4 py-3">{row.day}</td>
+                                <td className="px-4 py-3">{row.siteName}</td>
+                                <td className="px-4 py-3">{row.clientName ?? '-'}</td>
+                                <td className="px-4 py-3">{row.startJst ?? ''}</td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center justify-start gap-2">
+                                    <span>{row.endJst ?? ''}</span>
+                                    {row.autoGenerated ? (
+                                      <span
+                                        className="badge-auto inline-flex h-4 w-4 items-center justify-center rounded-full border-2 border-red-500 bg-red-500 shadow-[0_0_0_2px_rgba(255,255,255,0.95)]"
+                                        aria-label="自動退勤で生成された記録"
+                                        role="img"
+                                      />
+                                    ) : null}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">{formatWorkingHours(row.minutes)}</td>
+                                <td className="px-4 py-3">{row.overtimeHours ?? '0h'}</td>
+                              </tr>
+                            ))}
                           </tbody>
+                          <tfoot className="bg-gray-50">
+                            <tr className="text-sm text-gray-700">
+                              <td className="px-4 py-3 font-semibold" colSpan={7}>
+                                日計
+                              </td>
+                              <td className="px-4 py-3">
+                                <span>{groupTotalHoursText}</span>
+                                {groupAutoCount > 0 ? (
+                                  <span className="ml-2 text-xs text-gray-500">（自動{groupAutoCount}件）</span>
+                                ) : null}
+                              </td>
+                              <td className="px-4 py-3">{groupOvertimeText}</td>
+                            </tr>
+                          </tfoot>
                         </table>
                       </div>
                     </details>

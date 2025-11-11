@@ -1,5 +1,5 @@
 import { Record as AirtableRecord } from 'airtable';
-import { logsTable } from '@/lib/airtable';
+import { getMachinesMap, logsTable } from '@/lib/airtable';
 import type { LogFields } from '@/types';
 import { applyTimeCalcV2FromMinutes } from '@/src/lib/timecalc';
 import { getUsersMap } from './users';
@@ -266,7 +266,7 @@ export async function getLogsBetween(params: { from: Date; to: Date }): Promise<
     return normalized;
   }
 
-  const usersMap = await getUsersMap();
+  const [usersMap, machinesMap] = await Promise.all([getUsersMap(), getMachinesMap()]);
   const logs = normalized.sort((a, b) => a.timestampMs - b.timestampMs);
 
   return logs.map((log) => {
@@ -290,11 +290,30 @@ export async function getLogsBetween(params: { from: Date; to: Date }): Promise<
       }
     }
 
+    const machineId = (() => {
+      if (typeof log.machineId !== 'string') {
+        return null;
+      }
+      const trimmed = log.machineId.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    })();
+
+    const machineName = (() => {
+      if (typeof log.machineName === 'string' && log.machineName.trim().length > 0) {
+        return log.machineName.trim();
+      }
+      if (!machineId) {
+        return null;
+      }
+      const name = machinesMap.get(machineId);
+      return name && name.trim().length > 0 ? name.trim() : null;
+    })();
+
     return {
       ...log,
       userName: resolvedName ?? '未登録ユーザー',
-      machineId: log.machineId ?? null,
-      machineName: log.machineName ?? null,
+      machineId,
+      machineName,
     };
   });
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import MachineTag from '@/components/MachineTag';
 
 type SessionRecord = {
   userName: string;
@@ -10,6 +11,7 @@ type SessionRecord = {
   hours?: number | null;
   status: '正常' | '稼働中';
   machineId: string | null | undefined;
+  machineName?: string | null;
   workDescription?: string | null;
 };
 
@@ -236,8 +238,6 @@ export default function DayDetailDrawer({ date, open, onClose }: DayDetailDrawer
                           {group.items.map((session, index) => {
                             const statusClass =
                               session.status === '稼働中' ? 'text-amber-600' : 'text-brand-primary';
-                            const machineIdLabel =
-                              typeof session.machineId === 'string' ? session.machineId.trim() : '';
                             return (
                               <div
                                 key={`${session.userName}-${session.clockInAt}-${index}`}
@@ -256,9 +256,11 @@ export default function DayDetailDrawer({ date, open, onClose }: DayDetailDrawer
                                 </div>
                                 <div className="mt-1 text-sm text-brand-text">
                                   <span className="mr-2 opacity-70">機械</span>
-                                  <span className="tabular-nums">
-                                    {machineIdLabel.length > 0 ? machineIdLabel : '-'}
-                                  </span>
+                                  <MachineTag
+                                    id={session.machineId}
+                                    name={session.machineName}
+                                    className="tabular-nums"
+                                  />
                                 </div>
                                 <p className="mt-1 text-sm text-brand-muted">
                                   業務内容 {session.workDescription ?? '—'}

@@ -68,31 +68,6 @@ export const workTypesTable = getTypedTable<WorkTypeFields>('WorkTypes');
 export const logsTable = getTypedTable<LogFields>('Logs');
 // ... (既存のコード) ...
 
-const machinesCache = new Map<string, string>();
-
-export async function getMachinesMap(): Promise<Map<string, string>> {
-  if (machinesCache.size > 0) {
-    return machinesCache;
-  }
-
-  const records = await machinesTable
-    .select({ fields: ['machineid', 'name'], pageSize: 100 })
-    .all();
-
-  for (const record of records) {
-    const rawId = record.fields.machineid;
-    const rawName = record.fields.name;
-    const id = typeof rawId === 'string' ? rawId.trim() : '';
-    if (!id) {
-      continue;
-    }
-    const name = typeof rawName === 'string' ? rawName.trim() : '';
-    machinesCache.set(id, name);
-  }
-
-  return machinesCache;
-}
-
 // machineid(URLのパラメータ)を使って機械レコードを1件取得する関数
 export const getMachineById = async (machineId: string) => {
   try {

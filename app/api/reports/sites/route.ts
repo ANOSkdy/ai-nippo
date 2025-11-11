@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { sitesTable } from '@/lib/airtable';
+import { compareMachineId } from '@/lib/utils/sort';
 import { fetchSessionReportRows, type SessionReportRow } from '@/src/lib/sessions-reports';
 import { applyTimeCalcV2FromMinutes } from '@/src/lib/timecalc';
 import type { SiteFields } from '@/types';
@@ -55,6 +56,8 @@ export type ReportColumn = {
   userRecId?: string;
   userName: string;
   workDescription: string;
+  machineId?: string | number;
+  machineName?: string | null;
   machineIds: Array<string | number>;
   machineNames: string[];
 };
@@ -71,8 +74,8 @@ type ColumnAccumulator = {
   userRecId?: string;
   userName: string;
   workDescription: string;
-  machineIds: Set<string | number>;
-  machineNames: Set<string>;
+  machineId: string | null;
+  machineName: string | null;
 };
 
 export async function GET(req: NextRequest) {
@@ -138,19 +141,29 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const rawMinutes =
+      session.durationMin ?? (session.hours != null ? Math.round(session.hours * 60) : null);
+    const minutes = typeof rawMinutes === 'number' ? Math.round(rawMinutes) : 0;
+    if (minutes <= 0 || minutes >= 24 * 60) {
+      continue;
+    }
+
     const workDescription = session.workDescription?.trim() || '（未設定）';
 
     const userName = session.userName?.trim() || '不明ユーザー';
     const userKey = resolveSessionUserKey(session);
-    const columnKey = `${userKey}__${workDescription}`;
+    const machineNameValue = session.machineName?.trim() || null;
+    const normalizedMachineId = normalizeMachineIdValue(session.machineId);
+    const machineKey = normalizedMachineId ?? (machineNameValue ? `name:${machineNameValue}` : 'machine:unknown');
+    const columnKey = `${userKey}__${workDescription}__${machineKey}`;
     if (!columnMap.has(columnKey)) {
       columnMap.set(columnKey, {
         key: columnKey,
         userRecId: session.userRecordId ?? undefined,
         userName,
         workDescription,
-        machineIds: new Set(),
-        machineNames: new Set(),
+        machineId: normalizedMachineId,
+        machineName: machineNameValue,
       });
     }
 
@@ -159,24 +172,13 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    const machineId = session.machineId;
-    if (machineId != null) {
-      const machineIdText = typeof machineId === 'string' ? machineId.trim() : `${machineId}`.trim();
-      if (machineIdText) {
-        column.machineIds.add(typeof machineId === 'number' ? machineId : machineIdText);
-      }
+    if (!column.machineId && normalizedMachineId) {
+      column.machineId = normalizedMachineId;
     }
 
-    const machineName = session.machineName?.trim();
-    if (machineName) {
-      column.machineNames.add(machineName);
-    }
-
-    const rawMinutes =
-      session.durationMin ?? (session.hours != null ? Math.round(session.hours * 60) : null);
-    const minutes = typeof rawMinutes === 'number' ? Math.round(rawMinutes) : 0;
-    if (minutes <= 0 || minutes >= 24 * 60) {
-      continue;
+    const machineName = machineNameValue;
+    if (!column.machineName && machineName) {
+      column.machineName = machineName;
     }
 
     const groupKey = `${session.date}|${columnKey}`;
@@ -185,8 +187,24 @@ export async function GET(req: NextRequest) {
 
   const columns = Array.from(columnMap.values())
     .sort((a, b) => {
-      if (a.userName !== b.userName) {
-        return a.userName.localeCompare(b.userName, 'ja');
+      const aHasMachine = !!a.machineId;
+      const bHasMachine = !!b.machineId;
+      if (aHasMachine && bHasMachine) {
+        const diff = compareMachineId(
+          { machineId: a.machineId!, machineName: a.machineName },
+          { machineId: b.machineId!, machineName: b.machineName },
+        );
+        if (diff !== 0) {
+          return diff;
+        }
+      } else if (aHasMachine) {
+        return -1;
+      } else if (bHasMachine) {
+        return 1;
+      }
+      const userDiff = a.userName.localeCompare(b.userName, 'ja');
+      if (userDiff !== 0) {
+        return userDiff;
       }
       return a.workDescription.localeCompare(b.workDescription, 'ja');
     })
@@ -195,8 +213,10 @@ export async function GET(req: NextRequest) {
       userRecId: column.userRecId,
       userName: column.userName,
       workDescription: column.workDescription,
-      machineIds: Array.from(column.machineIds),
-      machineNames: Array.from(column.machineNames),
+      machineId: column.machineId ?? undefined,
+      machineName: column.machineName,
+      machineIds: column.machineId ? [column.machineId] : [],
+      machineNames: column.machineName ? [column.machineName] : [],
     }));
 
   const hoursByKey = new Map<string, number>();

@@ -7,6 +7,7 @@ import ReportsTabs from '@/components/reports/ReportsTabs';
 import PrintControls from '@/components/PrintControls';
 import { getJstParts } from '@/lib/jstDate';
 import MachineTag from '@/components/MachineTag';
+import { compareMachineId } from '@/lib/utils/sort';
 import MachineCheckboxGroup from './_components/MachineCheckboxGroup';
 import { formatQuarterHours, sumColumnHours, toMachineHeader, type SessionRow } from './_lib/gridUtils';
 
@@ -219,7 +220,12 @@ export default function SiteReportPage() {
     });
     return Array.from(map.entries())
       .filter(([id]) => id.trim().length > 0)
-      .sort((a, b) => a[0].localeCompare(b[0], 'ja'))
+      .sort((a, b) =>
+        compareMachineId(
+          { machineId: a[0], machineName: a[1] },
+          { machineId: b[0], machineName: b[1] },
+        ),
+      )
       .map(([id, name]) => ({
         id,
         name: name.trim().length > 0 ? name : id,

@@ -3,6 +3,7 @@
 import './sites.css';
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ChangeEvent } from 'react';
+import ReportFitToA4 from '@/components/ReportFitToA4';
 import ReportsTabs from '@/components/reports/ReportsTabs';
 import PrintControls from '@/components/PrintControls';
 import { getJstParts } from '@/lib/jstDate';
@@ -615,7 +616,8 @@ export default function SiteReportPage() {
   const isReady = Boolean(siteId) && Number.isFinite(year) && Number.isFinite(month);
 
   return (
-    <div className="p-4 space-y-6">
+    <ReportFitToA4 id="reports-sites">
+      <div className="p-4 space-y-6">
       <div className="print-hide">
         <ReportsTabs />
       </div>
@@ -905,6 +907,7 @@ export default function SiteReportPage() {
       ) : (
         <p className="text-sm text-gray-500">条件を選択し「集計する」を押すと結果が表示されます。</p>
       )}
-    </div>
+      </div>
+    </ReportFitToA4>
   );
 }

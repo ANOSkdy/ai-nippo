@@ -616,8 +616,7 @@ export default function SiteReportPage() {
   const isReady = Boolean(siteId) && Number.isFinite(year) && Number.isFinite(month);
 
   return (
-    <ReportFitToA4 id="reports-sites">
-      <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
       <div className="print-hide">
         <ReportsTabs />
       </div>
@@ -678,236 +677,238 @@ export default function SiteReportPage() {
         </div>
       </div>
 
-      {reportLoaded ? (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-start gap-3 print-hide">
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="font-medium">従業員名（複数選択可）</span>
-              <select
-                multiple
-                size={Math.min(6, Math.max(4, employeeOptions.length))}
-                className="rounded border px-2 py-1 min-w-48"
-                value={employeeFilter}
-                onChange={handleEmployeeFilterChange}
-              >
-                {employeeOptions.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="flex flex-1 flex-wrap items-start gap-3">
-              <button
-                type="button"
-                onClick={handleEmployeeFilterReset}
-                className="rounded border px-3 py-1 text-sm"
-                disabled={!hasEmployeeFilter}
-              >
-                全員を表示
-              </button>
-              <PrintControls className="ml-auto" title="現場別集計（A4）" />
+      <ReportFitToA4 id="reports-sites">
+        {reportLoaded ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-start gap-3 print-hide">
+              <label className="flex flex-col gap-2 text-sm">
+                <span className="font-medium">従業員名（複数選択可）</span>
+                <select
+                  multiple
+                  size={Math.min(6, Math.max(4, employeeOptions.length))}
+                  className="rounded border px-2 py-1 min-w-48"
+                  value={employeeFilter}
+                  onChange={handleEmployeeFilterChange}
+                >
+                  {employeeOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex flex-1 flex-wrap items-start gap-3">
+                <button
+                  type="button"
+                  onClick={handleEmployeeFilterReset}
+                  className="rounded border px-3 py-1 text-sm"
+                  disabled={!hasEmployeeFilter}
+                >
+                  全員を表示
+                </button>
+                <PrintControls className="ml-auto" title="現場別集計（A4）" />
+              </div>
             </div>
-          </div>
-          <div className="screen-table-wrapper">
-            <div className="overflow-x-auto rounded border">
-              <table className="table-unified text-sm print-avoid-break" style={tableStyle}>
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="col-narrow border px-2 py-1 text-right">日</th>
-                    <th className="col-narrow border px-2 py-1 text-center">曜</th>
-                    {indexedColumns.map(({ column }) => {
-                      const hidden = hasEmployeeFilter && !selectedEmployeeSet.has(column.userName);
-                      const className = hidden
-                        ? 'border px-2 py-1 text-left screen-hidden'
-                        : 'border px-2 py-1 text-left';
+            <div className="screen-table-wrapper">
+              <div className="overflow-x-auto rounded border">
+                <table className="table-unified text-sm print-avoid-break" style={tableStyle}>
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="col-narrow border px-2 py-1 text-right">日</th>
+                      <th className="col-narrow border px-2 py-1 text-center">曜</th>
+                      {indexedColumns.map(({ column }) => {
+                        const hidden = hasEmployeeFilter && !selectedEmployeeSet.has(column.userName);
+                        const className = hidden
+                          ? 'border px-2 py-1 text-left screen-hidden'
+                          : 'border px-2 py-1 text-left';
+                        return (
+                          <th key={`user-${column.key}`} className={className}>
+                            {column.userName}
+                          </th>
+                        );
+                      })}
+                      {Array.from({ length: columnPaddingCount }).map((_, index) => (
+                        <th key={`user-pad-${index}`} className="border px-2 py-1" aria-hidden="true" />
+                      ))}
+                    </tr>
+                    <tr className="bg-gray-50">
+                      <th className="col-narrow border px-2 py-1" />
+                      <th className="col-narrow border px-2 py-1" />
+                      {indexedColumns.map(({ column }) => {
+                        const hidden = hasEmployeeFilter && !selectedEmployeeSet.has(column.userName);
+                        const className = hidden
+                          ? 'border px-2 py-1 text-left screen-hidden'
+                          : 'border px-2 py-1 text-left';
+                        const machines = getMachineRefs(column.key);
+                        return (
+                          <th key={`work-${column.key}`} className={className}>
+                            <div className="flex flex-wrap gap-x-3 gap-y-1">
+                              {machines.length > 0 ? (
+                                machines.map((machine) => (
+                                  <MachineTag
+                                    key={machine.machineId}
+                                    id={machine.machineId}
+                                    name={machine.machineName ?? null}
+                                  />
+                                ))
+                              ) : (
+                                <MachineTag />
+                              )}
+                            </div>
+                          </th>
+                        );
+                      })}
+                      {Array.from({ length: columnPaddingCount }).map((_, index) => (
+                        <th key={`work-pad-${index}`} className="border px-2 py-1" aria-hidden="true" />
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {days.map((row) => {
+                      const { day, weekdayJp } = getJstParts(row.date);
                       return (
-                        <th key={`user-${column.key}`} className={className}>
-                          {column.userName}
-                        </th>
-                      );
-                    })}
-                    {Array.from({ length: columnPaddingCount }).map((_, index) => (
-                      <th key={`user-pad-${index}`} className="border px-2 py-1" aria-hidden="true" />
-                    ))}
-                  </tr>
-                  <tr className="bg-gray-50">
-                    <th className="col-narrow border px-2 py-1" />
-                    <th className="col-narrow border px-2 py-1" />
-                    {indexedColumns.map(({ column }) => {
-                      const hidden = hasEmployeeFilter && !selectedEmployeeSet.has(column.userName);
-                      const className = hidden
-                        ? 'border px-2 py-1 text-left screen-hidden'
-                        : 'border px-2 py-1 text-left';
-                      const machines = getMachineRefs(column.key);
-                      return (
-                        <th key={`work-${column.key}`} className={className}>
-                          <div className="flex flex-wrap gap-x-3 gap-y-1">
-                            {machines.length > 0 ? (
-                              machines.map((machine) => (
-                                <MachineTag
-                                  key={machine.machineId}
-                                  id={machine.machineId}
-                                  name={machine.machineName ?? null}
-                                />
-                              ))
-                            ) : (
-                              <MachineTag />
-                            )}
-                          </div>
-                        </th>
-                      );
-                    })}
-                    {Array.from({ length: columnPaddingCount }).map((_, index) => (
-                      <th key={`work-pad-${index}`} className="border px-2 py-1" aria-hidden="true" />
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {days.map((row) => {
-                    const { day, weekdayJp } = getJstParts(row.date);
-                    return (
-                      <tr key={row.date}>
-                        <td className="col-narrow border px-2 py-1 text-right">{day}</td>
-                        <td className="col-narrow border px-2 py-1 text-center">{weekdayJp}</td>
-                        {indexedColumns.map(({ column, index }) => {
-                          const hidden = hasEmployeeFilter && !selectedEmployeeSet.has(column.userName);
-                          const className = hidden
-                            ? 'border px-2 py-1 text-right tabular-nums screen-hidden'
-                            : 'border px-2 py-1 text-right tabular-nums';
-                          return (
-                            <td key={`${row.date}-${column.key}`} className={className}>
-                              {formatQuarterHours(row.values[index])}
-                            </td>
-                          );
-                        })}
-                        {Array.from({ length: columnPaddingCount }).map((_, index) => (
-                          <td key={`pad-${row.date}-${index}`} className="border px-2 py-1" aria-hidden="true" />
-                        ))}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-gray-100">
-                    <td className="col-narrow border px-2 py-1 font-semibold">稼働合計</td>
-                    <td className="col-narrow border px-2 py-1" />
-                    {indexedColumns.map(({ column }) => {
-                      const hidden = hasEmployeeFilter && !selectedEmployeeSet.has(column.userName);
-                      const baseClass = 'border px-2 py-1 text-right tabular-nums font-semibold';
-                      const className = hidden ? `${baseClass} screen-hidden` : baseClass;
-                      const total = totalsByColumnKey.get(column.key);
-                      const safeTotal =
-                        typeof total === 'number' && Number.isFinite(total) ? total : 0;
-                      return (
-                        <td key={`total-${column.key}`} className={className}>
-                          {formatQuarterHours(safeTotal)}
-                        </td>
-                      );
-                    })}
-                    {Array.from({ length: columnPaddingCount }).map((_, index) => (
-                      <td key={`total-pad-${index}`} className="border px-2 py-1" aria-hidden="true" />
-                    ))}
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-          {printColumnChunks.length > 0 ? (
-            <div className="print-table-wrapper">
-              {printColumnChunks.map((chunk, chunkIndex) => {
-                const chunkStyle = {
-                  '--reports-min-cols': String(2 + chunk.length),
-                } as CSSProperties & { '--reports-min-cols': string };
-                const blockClassName =
-                  chunkIndex === 0 ? 'print-table-block' : 'print-table-block print-break-before';
-                return (
-                  <div key={`print-chunk-${chunkIndex}`} className={blockClassName}>
-                    <table className="table-unified text-sm print-avoid-break" style={chunkStyle}>
-                      <thead>
-                        <tr className="bg-gray-50">
-                          <th className="col-narrow border px-2 py-1 text-right">日</th>
-                          <th className="col-narrow border px-2 py-1 text-center">曜</th>
-                          {chunk.map(({ column }) => (
-                            <th key={`print-user-${column.key}`} className="border px-2 py-1 text-left">
-                              {column.userName}
-                            </th>
-                          ))}
-                        </tr>
-                        <tr className="bg-gray-50">
-                          <th className="col-narrow border px-2 py-1" />
-                          <th className="col-narrow border px-2 py-1" />
-                          {chunk.map(({ column }) => {
-                            const machines = getMachineRefs(column.key);
+                        <tr key={row.date}>
+                          <td className="col-narrow border px-2 py-1 text-right">{day}</td>
+                          <td className="col-narrow border px-2 py-1 text-center">{weekdayJp}</td>
+                          {indexedColumns.map(({ column, index }) => {
+                            const hidden = hasEmployeeFilter && !selectedEmployeeSet.has(column.userName);
+                            const className = hidden
+                              ? 'border px-2 py-1 text-right tabular-nums screen-hidden'
+                              : 'border px-2 py-1 text-right tabular-nums';
                             return (
-                              <th key={`print-work-${column.key}`} className="border px-2 py-1 text-left">
-                                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                                  {machines.length > 0 ? (
-                                    machines.map((machine) => (
-                                      <MachineTag
-                                        key={machine.machineId}
-                                        id={machine.machineId}
-                                        name={machine.machineName ?? null}
-                                      />
-                                    ))
-                                  ) : (
-                                    <MachineTag />
-                                  )}
-                                </div>
-                              </th>
-                            );
-                          })}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {days.map((row) => {
-                          const { day, weekdayJp } = getJstParts(row.date);
-                          return (
-                            <tr key={`${row.date}-chunk-${chunkIndex}`}>
-                              <td className="col-narrow border px-2 py-1 text-right">{day}</td>
-                              <td className="col-narrow border px-2 py-1 text-center">{weekdayJp}</td>
-                              {chunk.map(({ column, index }) => (
-                                <td
-                                  key={`${row.date}-print-${column.key}`}
-                                  className="border px-2 py-1 text-right tabular-nums"
-                                >
-                                  {formatQuarterHours(row.values[index])}
-                                </td>
-                              ))}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="bg-gray-100">
-                          <td className="col-narrow border px-2 py-1 font-semibold">稼働合計</td>
-                          <td className="col-narrow border px-2 py-1" />
-                          {chunk.map(({ column }) => {
-                            const total = totalsByColumnKey.get(column.key);
-                            const safeTotal =
-                              typeof total === 'number' && Number.isFinite(total) ? total : 0;
-                            return (
-                              <td
-                                key={`print-total-${column.key}`}
-                                className="border px-2 py-1 text-right tabular-nums font-semibold"
-                              >
-                                {formatQuarterHours(safeTotal)}
+                              <td key={`${row.date}-${column.key}`} className={className}>
+                                {formatQuarterHours(row.values[index])}
                               </td>
                             );
                           })}
+                          {Array.from({ length: columnPaddingCount }).map((_, index) => (
+                            <td key={`pad-${row.date}-${index}`} className="border px-2 py-1" aria-hidden="true" />
+                          ))}
                         </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                );
-              })}
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-100">
+                      <td className="col-narrow border px-2 py-1 font-semibold">稼働合計</td>
+                      <td className="col-narrow border px-2 py-1" />
+                      {indexedColumns.map(({ column }) => {
+                        const hidden = hasEmployeeFilter && !selectedEmployeeSet.has(column.userName);
+                        const baseClass = 'border px-2 py-1 text-right tabular-nums font-semibold';
+                        const className = hidden ? `${baseClass} screen-hidden` : baseClass;
+                        const total = totalsByColumnKey.get(column.key);
+                        const safeTotal =
+                          typeof total === 'number' && Number.isFinite(total) ? total : 0;
+                        return (
+                          <td key={`total-${column.key}`} className={className}>
+                            {formatQuarterHours(safeTotal)}
+                          </td>
+                        );
+                      })}
+                      {Array.from({ length: columnPaddingCount }).map((_, index) => (
+                        <td key={`total-pad-${index}`} className="border px-2 py-1" aria-hidden="true" />
+                      ))}
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
-          ) : null}
-        </div>
-      ) : (
+            {printColumnChunks.length > 0 ? (
+              <div className="print-table-wrapper">
+                {printColumnChunks.map((chunk, chunkIndex) => {
+                  const chunkStyle = {
+                    '--reports-min-cols': String(2 + chunk.length),
+                  } as CSSProperties & { '--reports-min-cols': string };
+                  const blockClassName =
+                    chunkIndex === 0 ? 'print-table-block' : 'print-table-block print-break-before';
+                  return (
+                    <div key={`print-chunk-${chunkIndex}`} className={blockClassName}>
+                      <table className="table-unified text-sm print-avoid-break" style={chunkStyle}>
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="col-narrow border px-2 py-1 text-right">日</th>
+                            <th className="col-narrow border px-2 py-1 text-center">曜</th>
+                            {chunk.map(({ column }) => (
+                              <th key={`print-user-${column.key}`} className="border px-2 py-1 text-left">
+                                {column.userName}
+                              </th>
+                            ))}
+                          </tr>
+                          <tr className="bg-gray-50">
+                            <th className="col-narrow border px-2 py-1" />
+                            <th className="col-narrow border px-2 py-1" />
+                            {chunk.map(({ column }) => {
+                              const machines = getMachineRefs(column.key);
+                              return (
+                                <th key={`print-work-${column.key}`} className="border px-2 py-1 text-left">
+                                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                    {machines.length > 0 ? (
+                                      machines.map((machine) => (
+                                        <MachineTag
+                                          key={machine.machineId}
+                                          id={machine.machineId}
+                                          name={machine.machineName ?? null}
+                                        />
+                                      ))
+                                    ) : (
+                                      <MachineTag />
+                                    )}
+                                  </div>
+                                </th>
+                              );
+                            })}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {days.map((row) => {
+                            const { day, weekdayJp } = getJstParts(row.date);
+                            return (
+                              <tr key={`${row.date}-chunk-${chunkIndex}`}>
+                                <td className="col-narrow border px-2 py-1 text-right">{day}</td>
+                                <td className="col-narrow border px-2 py-1 text-center">{weekdayJp}</td>
+                                {chunk.map(({ column, index }) => (
+                                  <td
+                                    key={`${row.date}-print-${column.key}`}
+                                    className="border px-2 py-1 text-right tabular-nums"
+                                  >
+                                    {formatQuarterHours(row.values[index])}
+                                  </td>
+                                ))}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-gray-100">
+                            <td className="col-narrow border px-2 py-1 font-semibold">稼働合計</td>
+                            <td className="col-narrow border px-2 py-1" />
+                            {chunk.map(({ column }) => {
+                              const total = totalsByColumnKey.get(column.key);
+                              const safeTotal =
+                                typeof total === 'number' && Number.isFinite(total) ? total : 0;
+                              return (
+                                <td
+                                  key={`print-total-${column.key}`}
+                                  className="border px-2 py-1 text-right tabular-nums font-semibold"
+                                >
+                                  {formatQuarterHours(safeTotal)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </ReportFitToA4>
+      {!reportLoaded ? (
         <p className="text-sm text-gray-500">条件を選択し「集計する」を押すと結果が表示されます。</p>
-      )}
-      </div>
-    </ReportFitToA4>
+      ) : null}
+    </div>
   );
 }

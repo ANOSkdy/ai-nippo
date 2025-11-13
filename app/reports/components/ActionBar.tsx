@@ -10,7 +10,6 @@ type ActionBarProps = {
 };
 
 export default function ActionBar({ params, hasData }: ActionBarProps) {
-  const [format, setFormat] = useState<'pdf' | 'excel'>('pdf');
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,25 +26,8 @@ export default function ActionBar({ params, hasData }: ActionBarProps) {
     URL.revokeObjectURL(url);
   };
 
-  const downloadExcel = async () => {
-    const payload = { ...params };
-    delete payload.auto;
-    const response = await fetch('/api/reports/export/excel', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      const data = (await response.json().catch(() => null)) as { message?: string } | null;
-      throw new Error(data?.message ?? 'Excel出力に失敗しました');
-    }
-    const blob = await response.blob();
-    triggerDownload(blob, `report-${params.year}${monthLabel}.xlsx`);
-  };
-
   const downloadPdf = async () => {
-    const payload = { ...params };
-    delete payload.auto;
+    const { auto: _auto, ...payload } = params;
     const response = await fetch('/api/reports/export/pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,11 +48,7 @@ export default function ActionBar({ params, hasData }: ActionBarProps) {
     setIsDownloading(true);
     setError(null);
     try {
-      if (format === 'pdf') {
-        await downloadPdf();
-      } else {
-        await downloadExcel();
-      }
+      await downloadPdf();
     } catch (downloadError) {
       const message =
         downloadError instanceof Error
@@ -88,19 +66,6 @@ export default function ActionBar({ params, hasData }: ActionBarProps) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <label className="text-sm font-medium text-muted-foreground" htmlFor="report-format">
-          <span className="sr-only">出力形式</span>
-          <select
-            id="report-format"
-            aria-label="出力形式を選択"
-            value={format}
-            onChange={(event) => setFormat(event.target.value as 'pdf' | 'excel')}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="pdf">PDF</option>
-            <option value="excel">Excel（自由列）</option>
-          </select>
-        </label>
         <button
           type="button"
           className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted"
@@ -108,7 +73,7 @@ export default function ActionBar({ params, hasData }: ActionBarProps) {
           disabled={!hasData || isDownloading}
           aria-live="polite"
         >
-          {isDownloading ? 'ダウンロード中...' : format === 'pdf' ? 'PDF出力' : 'Excel出力'}
+          {isDownloading ? 'ダウンロード中...' : 'PDF出力'}
         </button>
         <DownloadCsvButton filters={params} disabled={isDownloading} />
         {!hasData ? (

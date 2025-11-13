@@ -35,17 +35,6 @@ export default function ReportsTabs() {
           );
         })}
 
-        {isReportsPage ? (
-          <a
-            href={RECORD_ADJUST_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="pb-1 text-sm text-gray-500 transition hover:text-gray-900"
-            aria-label="レコード調整フォームを新しいタブで開く"
-          >
-            レコード調整
-          </a>
-        ) : null}
       </nav>
 
       {isReportsPage ? (

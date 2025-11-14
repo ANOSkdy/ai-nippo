@@ -3,11 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+const DEFAULT_MACHINE_ID = process.env.NEXT_PUBLIC_DEFAULT_MACHINE_ID ?? '1003';
+
 const NAV_TABS = [
   // ダッシュボードが月次カレンダーを代替
   { href: '/dashboard', label: 'カレンダー' },
   { href: '/reports', label: '稼働集計' },
-  { href: '/nfc?machineId=1001', label: '打刻ページ' },
+  { href: `/nfc?machineId=${DEFAULT_MACHINE_ID}`, label: '打刻ページ' },
 ] as const;
 
 type NavTab = (typeof NAV_TABS)[number];

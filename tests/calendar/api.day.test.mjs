@@ -131,11 +131,11 @@ test('day API returns paired sessions without punches detail', async () => {
       workType: '溶接',
       workDescriptions: ['現場点検'],
       note: null,
-      machineId: '1001',
+      machineId: '1003',
       machineName: '油圧プレス #1',
       rawFields: {
         'name (from user)': ['suzuki'],
-        'machineId (from machine)': ['1001'],
+        'machineId (from machine)': ['1003'],
       },
     },
     {
@@ -150,11 +150,11 @@ test('day API returns paired sessions without punches detail', async () => {
       workType: '溶接',
       workDescriptions: ['報告'],
       note: '現地確認',
-      machineId: '1001',
+      machineId: '1003',
       machineName: '油圧プレス #1',
       rawFields: {
         'name (from user)': ['suzuki'],
-        'machineId (from machine)': ['1001'],
+        'machineId (from machine)': ['1003'],
       },
     },
     {
@@ -225,11 +225,11 @@ test('day API returns paired sessions without punches detail', async () => {
       workType: '溶接',
       workDescriptions: ['後処理'],
       note: null,
-      machineId: '1001',
+      machineId: '1003',
       machineName: '油圧プレス #1',
       rawFields: {
         'name (from user)': ['suzuki'],
-        'machineId (from machine)': ['1001'],
+        'machineId (from machine)': ['1003'],
       },
     },
   ];
@@ -248,7 +248,7 @@ test('day API returns paired sessions without punches detail', async () => {
   assert.strictEqual(firstSession.clockOutAt, '16:30');
   assert.strictEqual(firstSession.hours, 7.5);
   assert.strictEqual(firstSession.status, '正常');
-  assert.strictEqual(firstSession.machineId, '1001');
+  assert.strictEqual(firstSession.machineId, '1003');
   assert.strictEqual(firstSession.machineName, '油圧プレス #1');
   assert.strictEqual(firstSession.workDescription, '現場点検 / 報告');
   const secondSession = body.sessions[1];
@@ -269,7 +269,7 @@ test('day API returns paired sessions without punches detail', async () => {
   assert.strictEqual('clockOutAt' in openSession, false);
   assert.strictEqual('hours' in openSession, false);
   assert.strictEqual(openSession.clockInAt, '21:00');
-  assert.strictEqual(openSession.machineId, '1001');
+  assert.strictEqual(openSession.machineId, '1003');
   assert.strictEqual(openSession.machineName, '油圧プレス #1');
   assert.strictEqual(openSession.workDescription, '後処理');
 });

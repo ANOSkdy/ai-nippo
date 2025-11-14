@@ -24,7 +24,7 @@ export default async function NFCPage({ searchParams }: NFCPageProps) {
         ? searchParams.machineid
         : null;
 
-  const defaultMachineId = (process.env.NEXT_PUBLIC_DEFAULT_MACHINE_ID || '1001').trim();
+  const defaultMachineId = (process.env.NEXT_PUBLIC_DEFAULT_MACHINE_ID || '1003').trim();
 
   const candidates = [requestedMachineId, defaultMachineId].filter(
     (value): value is string => typeof value === 'string' && value.trim().length > 0,

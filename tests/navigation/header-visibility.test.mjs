@@ -32,7 +32,7 @@ test('nav tabs expose calendar, reports, and NFC routes', () => {
   const hrefs = NAV_TABS.map((tab) => tab.href);
   assert.ok(hrefs.includes('/dashboard'));
   assert.ok(hrefs.includes('/reports'));
-  assert.ok(hrefs.includes('/nfc?machineId=1001'));
+  assert.ok(hrefs.includes('/nfc?machineId=1003'));
   assert.ok(!hrefs.includes('/reports/sites'));
 });
 

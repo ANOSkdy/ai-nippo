@@ -2,15 +2,12 @@
 
 import Link from 'next/link';
 
-const DEFAULT_MACHINE_ID = process.env.NEXT_PUBLIC_DEFAULT_MACHINE_ID ?? '1001';
-
 export default function NfcLinkButton() {
-  const qs = new URLSearchParams({ machineId: DEFAULT_MACHINE_ID }).toString();
+  const targetUrl = 'https://ai-nippo.vercel.app/nfc?machineid=1003';
 
   return (
     <Link
-      href={`/nfc?${qs}`}
-      prefetch
+      href={targetUrl}
       aria-label="打刻ページ"
       className="tap-target inline-flex items-center gap-2 rounded-xl border border-brand-border bg-brand-primary px-4 py-2 text-sm font-semibold text-brand-primaryText shadow-sm transition hover:bg-brand-primary/90"
     >

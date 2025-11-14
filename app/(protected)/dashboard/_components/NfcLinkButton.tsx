@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 
-const DEFAULT_MACHINE_ID = process.env.NEXT_PUBLIC_DEFAULT_MACHINE_ID ?? '1001';
+const DASHBOARD_MACHINE_ID = '1003';
 
 export default function NfcLinkButton() {
-  const qs = new URLSearchParams({ machineId: DEFAULT_MACHINE_ID }).toString();
+  const qs = new URLSearchParams({ machineId: DASHBOARD_MACHINE_ID }).toString();
 
   return (
     <Link

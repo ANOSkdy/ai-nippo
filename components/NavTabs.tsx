@@ -32,15 +32,17 @@ function filterTabs(tabs: readonly NavTab[], showNfc: boolean): readonly NavTab[
 export default function NavTabs({ showNfc = true }: NavTabsProps) {
   const pathname = usePathname();
   const tabsToRender = filterTabs(NAV_TABS, showNfc);
+  const isDashboard = pathname === '/dashboard';
 
   return (
     <nav role="navigation" aria-label="主要タブナビゲーション" className="flex items-center gap-1 text-sm font-medium">
       {tabsToRender.map((tab) => {
         const active = isActivePath(pathname, tab.href);
+        const targetHref = tab.href.startsWith('/nfc') && isDashboard ? '/nfc?machineId=1003' : tab.href;
         return (
           <Link
             key={tab.href}
-            href={tab.href}
+            href={targetHref}
             className={`rounded-md px-3 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-focus/40 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-surface ${
               active
                 ? 'bg-brand-primary text-brand-primaryText shadow-sm'

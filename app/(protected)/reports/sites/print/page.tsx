@@ -30,12 +30,14 @@ function parseParams(searchParams?: SearchParams): ParsedParams {
   const year = Number.parseInt(toSingleValue(searchParams?.year), 10);
   const month = Number.parseInt(toSingleValue(searchParams?.month), 10);
   const siteId = toSingleValue(searchParams?.siteId).trim();
-  const machineIds = (searchParams?.machineIds ?? [])
-    .flatMap((value) => (Array.isArray(value) ? value : value?.split(',') ?? []))
+  const rawMachineIds = searchParams?.machineIds;
+  const rawEmployees = searchParams?.employees;
+
+  const machineIds = (Array.isArray(rawMachineIds) ? rawMachineIds : rawMachineIds?.split(',') ?? [])
     .map((value) => value?.trim())
     .filter((value): value is string => Boolean(value));
-  const employees = (searchParams?.employees ?? [])
-    .flatMap((value) => (Array.isArray(value) ? value : value?.split(',') ?? []))
+
+  const employees = (Array.isArray(rawEmployees) ? rawEmployees : rawEmployees?.split(',') ?? [])
     .map((value) => value?.trim())
     .filter((value): value is string => Boolean(value));
   return { year, month, siteId, machineIds, employees };

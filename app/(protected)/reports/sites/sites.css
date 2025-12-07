@@ -42,10 +42,14 @@
 }
 
 .print-table-block {
-  margin-bottom: 12mm;
+  margin-bottom: 8mm;
 }
 
 @media print {
+  :root {
+    --reports-col-width: 9rem;
+  }
+
   .screen-table-wrapper {
     display: none !important;
   }

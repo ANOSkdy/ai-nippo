@@ -17,7 +17,7 @@ type ParsedParams = {
   employees: string[];
 };
 
-const PRINT_COLUMNS_PER_PAGE = 6;
+const PRINT_COLUMNS_PER_PAGE = 12;
 
 function toSingleValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
@@ -93,16 +93,16 @@ export default async function SiteReportPrintPage({
   };
 
   return (
-    <main className="report-print space-y-4 p-4">
+    <main className="report-print space-y-3 p-3 text-[11px] leading-tight">
       <AutoPrintOnMount />
       <header className="space-y-1">
-        <h1 className="text-xl font-semibold">現場別集計 印刷</h1>
-        <p className="text-sm text-gray-700">
+        <h1 className="text-lg font-semibold">現場別集計 印刷</h1>
+        <p className="text-[11px] text-gray-700">
           {report.site.name || '（現場不明）'} / {report.site.client || '元請未設定'}
         </p>
-        <p className="text-xs text-gray-600">{report.year}年 {report.month}月</p>
+        <p className="text-[10px] text-gray-600">{report.year}年 {report.month}月</p>
         {hasEmployeeFilter ? (
-          <p className="text-xs text-gray-600">表示対象: {Array.from(selectedEmployees).join(', ')}</p>
+          <p className="text-[10px] text-gray-600">表示対象: {Array.from(selectedEmployees).join(', ')}</p>
         ) : null}
       </header>
 
@@ -117,7 +117,10 @@ export default async function SiteReportPrintPage({
             const blockClassName = chunkIndex === 0 ? 'print-table-block' : 'print-table-block print-break-before';
             return (
               <div key={`print-chunk-${chunkIndex}`} className={blockClassName}>
-                <table className="table-unified text-sm print-avoid-break" style={chunkStyle}>
+                <table
+                  className="compact-table table-unified text-[11px] leading-tight print-avoid-break"
+                  style={chunkStyle}
+                >
                   <thead>
                     <tr className="bg-gray-50">
                       <th className="col-narrow border px-2 py-1 text-right">日</th>
@@ -135,7 +138,7 @@ export default async function SiteReportPrintPage({
                         const machines = getMachineRefs(column.key);
                         return (
                           <th key={`print-work-${column.key}`} className="border px-2 py-1 text-left">
-                            <div className="flex flex-wrap gap-x-3 gap-y-1">
+                            <div className="flex flex-wrap gap-x-2 gap-y-1 text-[10px] leading-tight">
                               {machines.length > 0 ? (
                                 machines.map((machine) => (
                                   <span key={machine.machineId} className="rounded bg-gray-100 px-1 py-0.5 text-[11px]">

@@ -18,7 +18,7 @@
 
   /* reports内に限定してレイアウト最適化 */
   .report-print {
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.4;
     color: #000;
   }
@@ -56,6 +56,13 @@
     box-shadow: 0 0 0 2px #fff !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .report-print .compact-table th,
+  .report-print .compact-table td {
+    padding: 3px 4px;
+    font-size: 11px;
+    line-height: 1.35;
   }
 
   /* 小数点・数字の見やすさ向上（任意） */

@@ -568,6 +568,32 @@ export default function SiteReportPage() {
     setEmployeeFilter([]);
   };
 
+  const buildPrintSearchParams = useCallback(() => {
+    const params = new URLSearchParams();
+    if (Number.isFinite(year)) {
+      params.set('year', String(year));
+    }
+    if (Number.isFinite(month)) {
+      params.set('month', String(month));
+    }
+    if (siteId) {
+      params.set('siteId', siteId);
+    }
+    machineFilter.forEach((id) => {
+      const normalized = typeof id === 'string' ? id.trim() : String(id).trim();
+      if (normalized) {
+        params.append('machineIds', normalized);
+      }
+    });
+    employeeFilter.forEach((name) => {
+      const normalized = name.trim();
+      if (normalized) {
+        params.append('employees', normalized);
+      }
+    });
+    return params;
+  }, [employeeFilter, machineFilter, month, siteId, year]);
+
   async function loadReport() {
     if (!siteId || !Number.isFinite(year) || !Number.isFinite(month)) {
       return;
@@ -704,7 +730,12 @@ export default function SiteReportPage() {
               >
                 全員を表示
               </button>
-              <PrintControls className="ml-auto" title="現場別集計（A4）" />
+              <PrintControls
+                className="ml-auto"
+                title="現場別集計（A4）"
+                printPath="/reports/sites/print"
+                getSearchParams={buildPrintSearchParams}
+              />
             </div>
           </div>
           <div className="screen-table-wrapper">

@@ -28,6 +28,7 @@ export default function ActionBar({ params, hasData }: ActionBarProps) {
 
   const downloadPdf = async () => {
     const { auto: _auto, ...payload } = params;
+    void _auto;
     const response = await fetch('/api/reports/export/pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

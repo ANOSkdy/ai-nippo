@@ -42,10 +42,18 @@
 }
 
 .print-table-block {
-  margin-bottom: 12mm;
+  margin-bottom: 1mm;
 }
 
 @media print {
+  :root {
+    --reports-col-width: 4rem;
+  }
+
+  .print-table-wrapper {
+    --reports-fixed-table-width: calc(var(--reports-col-width) * var(--reports-min-cols));
+  }
+
   .screen-table-wrapper {
     display: none !important;
   }
@@ -56,5 +64,12 @@
 
   .print-table-wrapper .print-table-block {
     break-inside: avoid;
+  }
+
+  .print-table-wrapper .print-table-block table {
+    width: var(--reports-fixed-table-width);
+    min-width: var(--reports-fixed-table-width);
+    max-width: var(--reports-fixed-table-width);
+    margin: 0 auto;
   }
 }

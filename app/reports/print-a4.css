@@ -1,11 +1,11 @@
 /**
  * reports専用の印刷スタイル
  * スコープ: .report-print 内のみ有効
- * 目的: A4縦での紙/PDF出力最適化
+ * 目的: A4横での紙/PDF出力最適化
  */
 @page {
-  size: A4 portrait;
-  margin: 12mm;
+  size: A4 landscape;
+  margin: 13mm;
 }
 
 /* 画面では通常表示、印刷時に最適化 */
@@ -18,8 +18,8 @@
 
   /* reports内に限定してレイアウト最適化 */
   .report-print {
-    font-size: 12px;
-    line-height: 1.4;
+    font-size: 9px;
+    line-height: 1.2;
     color: #000;
   }
 
@@ -47,7 +47,7 @@
   .report-print th,
   .report-print td {
     border: 1px solid #000;
-    padding: 4px 6px;
+    padding: 2px 3px;
   }
 
   .report-print .badge-auto {
@@ -56,6 +56,20 @@
     box-shadow: 0 0 0 2px #fff !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .report-print .compact-table th,
+  .report-print .compact-table td {
+    padding: 1px 2px;
+    font-size: 9px;
+    line-height: 1.15;
+  }
+
+  .report-print .ultra-compact th,
+  .report-print .ultra-compact td {
+    padding: 0.5px 1px;
+    font-size: 8.5px;
+    line-height: 1.05;
   }
 
   /* 小数点・数字の見やすさ向上（任意） */

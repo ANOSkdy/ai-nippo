@@ -17,7 +17,7 @@ type ParsedParams = {
   employees: string[];
 };
 
-const PRINT_COLUMNS_PER_PAGE = 12;
+const PRINT_COLUMNS_PER_PAGE = 20;
 
 function toSingleValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
@@ -93,11 +93,11 @@ export default async function SiteReportPrintPage({
   };
 
   return (
-    <main className="report-print mx-auto w-full max-w-screen-xl space-y-2 p-2 text-[10px] leading-[1.25]">
+    <main className="report-print mx-auto w-full max-w-screen-xl space-y-1 p-1 text-[9px] leading-[1.15]">
       <AutoPrintOnMount />
       <header className="space-y-1">
-        <h1 className="text-lg font-semibold">現場別集計 印刷</h1>
-        <p className="text-[10px] text-gray-700">
+        <h1 className="text-base font-semibold">現場別集計 印刷</h1>
+        <p className="text-[9px] text-gray-700">
           {report.site.name || '（現場不明）'} / {report.site.client || '元請未設定'}
         </p>
         <p className="text-[9px] text-gray-600">{report.year}年 {report.month}月</p>
@@ -112,42 +112,42 @@ export default async function SiteReportPrintPage({
         <div className="print-table-wrapper">
           {printColumnChunks.map((chunk, chunkIndex) => {
             const chunkStyle = {
-              '--reports-min-cols': String(2 + chunk.length),
+              '--reports-min-cols': String(2 + PRINT_COLUMNS_PER_PAGE),
             } as CSSProperties & { '--reports-min-cols': string };
             const blockClassName = chunkIndex === 0 ? 'print-table-block' : 'print-table-block print-break-before';
             return (
               <div key={`print-chunk-${chunkIndex}`} className={blockClassName}>
                 <table
-                  className="compact-table table-unified text-[10px] leading-[1.25] print-avoid-break"
+                  className="compact-table table-unified text-[9px] leading-[1.15] print-avoid-break"
                   style={chunkStyle}
                 >
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="col-narrow border px-1.5 py-0.5 text-right">日</th>
-                      <th className="col-narrow border px-1.5 py-0.5 text-center">曜</th>
+                      <th className="col-narrow border px-1 py-[2px] text-right">日</th>
+                      <th className="col-narrow border px-1 py-[2px] text-center">曜</th>
                       {chunk.map(({ column }) => (
-                        <th key={`print-user-${column.key}`} className="border px-1.5 py-0.5 text-left">
+                        <th key={`print-user-${column.key}`} className="border px-1 py-[2px] text-left">
                           {column.userName}
                         </th>
                       ))}
                     </tr>
                     <tr className="bg-gray-50">
-                      <th className="col-narrow border px-1.5 py-0.5" />
-                      <th className="col-narrow border px-1.5 py-0.5" />
+                      <th className="col-narrow border px-1 py-[2px]" />
+                      <th className="col-narrow border px-1 py-[2px]" />
                       {chunk.map(({ column }) => {
                         const machines = getMachineRefs(column.key);
                         return (
-                          <th key={`print-work-${column.key}`} className="border px-1.5 py-0.5 text-left">
-                            <div className="flex flex-wrap gap-x-2 gap-y-1 text-[10px] leading-tight">
+                          <th key={`print-work-${column.key}`} className="border px-1 py-[2px] text-left">
+                            <div className="flex flex-wrap gap-x-1.5 gap-y-1 text-[9px] leading-tight">
                               {machines.length > 0 ? (
                                 machines.map((machine) => (
-                                  <span key={machine.machineId} className="rounded bg-gray-100 px-1 py-0.5 text-[11px]">
+                                  <span key={machine.machineId} className="rounded bg-gray-100 px-1 py-0.5 text-[9px]">
                                     {machine.machineId}
                                     {machine.machineName ? ` (${machine.machineName})` : ''}
                                   </span>
                                 ))
                               ) : (
-                                <span className="rounded bg-gray-100 px-1 py-0.5 text-[11px]">機械未設定</span>
+                                <span className="rounded bg-gray-100 px-1 py-0.5 text-[9px]">機械未設定</span>
                               )}
                             </div>
                           </th>
@@ -159,10 +159,10 @@ export default async function SiteReportPrintPage({
                     {report.days.map((row) => {
                       return (
                         <tr key={`${row.date}-chunk-${chunkIndex}`}>
-                          <td className="col-narrow border px-1.5 py-0.5 text-right">{row.day}</td>
-                          <td className="col-narrow border px-1.5 py-0.5 text-center">{row.dow}</td>
+                          <td className="col-narrow border px-1 py-[2px] text-right">{row.day}</td>
+                          <td className="col-narrow border px-1 py-[2px] text-center">{row.dow}</td>
                           {chunk.map(({ column, index }) => (
-                            <td key={`${row.date}-print-${column.key}`} className="border px-1.5 py-0.5 text-right tabular-nums">
+                            <td key={`${row.date}-print-${column.key}`} className="border px-1 py-[2px] text-right tabular-nums">
                               {formatQuarterHours(row.values[index])}
                             </td>
                           ))}
@@ -172,13 +172,13 @@ export default async function SiteReportPrintPage({
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-100">
-                      <td className="col-narrow border px-1.5 py-0.5 font-semibold">稼働合計</td>
-                      <td className="col-narrow border px-1.5 py-0.5" />
+                      <td className="col-narrow border px-1 py-[2px] font-semibold">稼働合計</td>
+                      <td className="col-narrow border px-1 py-[2px]" />
                       {chunk.map(({ column }) => {
                         const total = totalsByColumnKey.get(column.key);
                         const safeTotal = typeof total === 'number' && Number.isFinite(total) ? total : 0;
                         return (
-                          <td key={`print-total-${column.key}`} className="border px-1.5 py-0.5 text-right tabular-nums font-semibold">
+                          <td key={`print-total-${column.key}`} className="border px-1 py-[2px] text-right tabular-nums font-semibold">
                             {formatQuarterHours(safeTotal)}
                           </td>
                         );

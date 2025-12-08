@@ -50,6 +50,10 @@
     --reports-col-width: 4rem;
   }
 
+  .print-table-wrapper {
+    --reports-fixed-table-width: calc(var(--reports-col-width) * var(--reports-min-cols));
+  }
+
   .screen-table-wrapper {
     display: none !important;
   }
@@ -63,9 +67,9 @@
   }
 
   .print-table-wrapper .print-table-block table {
-    width: calc(var(--reports-col-width) * var(--reports-min-cols));
-    min-width: calc(var(--reports-col-width) * var(--reports-min-cols));
-    max-width: calc(var(--reports-col-width) * var(--reports-min-cols));
+    width: var(--reports-fixed-table-width);
+    min-width: var(--reports-fixed-table-width);
+    max-width: var(--reports-fixed-table-width);
     margin: 0 auto;
   }
 }

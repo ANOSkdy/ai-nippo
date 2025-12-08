@@ -18,6 +18,7 @@ type ParsedParams = {
 };
 
 const PRINT_COLUMNS_PER_PAGE = 20;
+const TABLE_TOTAL_COLS = 2 + PRINT_COLUMNS_PER_PAGE;
 
 function toSingleValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
@@ -71,6 +72,14 @@ export default async function SiteReportPrintPage({
     printColumnChunks.push(indexedColumns.slice(i, i + PRINT_COLUMNS_PER_PAGE));
   }
 
+  const fixedTableStyle = {
+    '--reports-min-cols': String(TABLE_TOTAL_COLS),
+    '--reports-fixed-table-width': `calc(var(--reports-col-width) * ${TABLE_TOTAL_COLS})`,
+  } as CSSProperties & {
+    '--reports-min-cols': string;
+    '--reports-fixed-table-width': string;
+  };
+
   const totalsByColumnKey = new Map<string, number>();
   report.days.forEach((day) => {
     day.values.forEach((value, idx) => {
@@ -109,25 +118,13 @@ export default async function SiteReportPrintPage({
       {indexedColumns.length === 0 ? (
         <p className="text-sm text-gray-700">対象の列がありません。フィルター条件を確認してください。</p>
       ) : (
-        <div className="print-table-wrapper">
+        <div className="print-table-wrapper" style={fixedTableStyle}>
           {printColumnChunks.map((chunk, chunkIndex) => {
-            const chunkStyle = {
-              '--reports-min-cols': String(2 + PRINT_COLUMNS_PER_PAGE),
-              width: `calc(var(--reports-col-width) * ${2 + PRINT_COLUMNS_PER_PAGE})`,
-              minWidth: `calc(var(--reports-col-width) * ${2 + PRINT_COLUMNS_PER_PAGE})`,
-              maxWidth: `calc(var(--reports-col-width) * ${2 + PRINT_COLUMNS_PER_PAGE})`,
-            } as CSSProperties & {
-              '--reports-min-cols': string;
-              width: string;
-              minWidth: string;
-              maxWidth: string;
-            };
             const blockClassName = chunkIndex === 0 ? 'print-table-block' : 'print-table-block print-break-before';
             return (
               <div key={`print-chunk-${chunkIndex}`} className={blockClassName}>
                 <table
                   className="compact-table table-unified text-[9px] leading-[1.15] print-avoid-break"
-                  style={chunkStyle}
                 >
                   <thead>
                     <tr className="bg-gray-50">

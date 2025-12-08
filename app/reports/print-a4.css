@@ -5,7 +5,7 @@
  */
 @page {
   size: A4 landscape;
-  margin: 4mm;
+  margin: 13mm;
 }
 
 /* 画面では通常表示、印刷時に最適化 */
@@ -67,9 +67,9 @@
 
   .report-print .ultra-compact th,
   .report-print .ultra-compact td {
-    padding: 1px 1.5px;
-    font-size: 9px;
-    line-height: 1.1;
+    padding: 0.5px 1px;
+    font-size: 8.5px;
+    line-height: 1.05;
   }
 
   /* 小数点・数字の見やすさ向上（任意） */

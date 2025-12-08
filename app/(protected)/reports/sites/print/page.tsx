@@ -93,9 +93,9 @@ export default async function SiteReportPrintPage({
   };
 
   return (
-    <main className="report-print mx-auto w-full max-w-screen-xl space-y-1 p-1 text-[9px] leading-[1.15]">
+    <main className="report-print mx-auto w-full max-w-screen-xl space-y-0.5 p-0 text-[8.5px] leading-[1.05]">
       <AutoPrintOnMount />
-      <header className="space-y-1">
+      <header className="space-y-1 px-1">
         <h1 className="text-base font-semibold">現場別集計 印刷</h1>
         <p className="text-[9px] text-gray-700">
           {report.site.name || '（現場不明）'} / {report.site.client || '元請未設定'}
@@ -113,7 +113,15 @@ export default async function SiteReportPrintPage({
           {printColumnChunks.map((chunk, chunkIndex) => {
             const chunkStyle = {
               '--reports-min-cols': String(2 + PRINT_COLUMNS_PER_PAGE),
-            } as CSSProperties & { '--reports-min-cols': string };
+              width: `calc(var(--reports-col-width) * ${2 + PRINT_COLUMNS_PER_PAGE})`,
+              minWidth: `calc(var(--reports-col-width) * ${2 + PRINT_COLUMNS_PER_PAGE})`,
+              maxWidth: `calc(var(--reports-col-width) * ${2 + PRINT_COLUMNS_PER_PAGE})`,
+            } as CSSProperties & {
+              '--reports-min-cols': string;
+              width: string;
+              minWidth: string;
+              maxWidth: string;
+            };
             const blockClassName = chunkIndex === 0 ? 'print-table-block' : 'print-table-block print-break-before';
             return (
               <div key={`print-chunk-${chunkIndex}`} className={blockClassName}>

@@ -42,7 +42,7 @@
 }
 
 .print-table-block {
-  margin-bottom: 3mm;
+  margin-bottom: 1mm;
 }
 
 @media print {
@@ -60,5 +60,12 @@
 
   .print-table-wrapper .print-table-block {
     break-inside: avoid;
+  }
+
+  .print-table-wrapper .print-table-block table {
+    width: calc(var(--reports-col-width) * var(--reports-min-cols));
+    min-width: calc(var(--reports-col-width) * var(--reports-min-cols));
+    max-width: calc(var(--reports-col-width) * var(--reports-min-cols));
+    margin: 0 auto;
   }
 }

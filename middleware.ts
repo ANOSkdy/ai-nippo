@@ -9,8 +9,9 @@ export const config = {
      * - /_next/static (静的ファイル)
      * - /_next/image (画像最適化ファイル)
      * - /favicon.ico (ファビコンファイル)
+     * - /favicon.svg, /icon.svg (ファビコンファイル)
      * - /login (ログインページ)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|login).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|favicon.svg|icon.svg|login).*)",
   ],
 };

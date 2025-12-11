@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AI powered growth icon">
+  <g fill="none" stroke="#000" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M205 340 C 205 300 225 260 265 225 C 305 190 355 170 405 160" />
+    <path d="M245 340 C 245 300 265 260 305 225 C 345 190 395 175 445 165" />
+    <path d="M285 340 C 285 305 305 270 340 235 C 380 200 430 180 480 170" />
+  </g>
+  <path d="M480 170 L480 105" stroke="#000" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <path d="M480 80 L440 150 H520 Z" fill="#000" />
+  <rect x="170" y="320" width="170" height="150" rx="32" ry="32" fill="none" stroke="#000" stroke-width="20" />
+  <circle cx="255" cy="395" r="35" fill="none" stroke="#000" stroke-width="20" />
+  <rect x="235" y="375" width="40" height="40" fill="#000" />
+</svg>

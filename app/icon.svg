@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#ffffff" />
+  <text x="50%" y="52%" text-anchor="middle" font-family="'Inter', 'Noto Sans JP', system-ui, -apple-system, sans-serif" font-size="150" font-weight="700" fill="#0d0d0d" letter-spacing="4">
+    CLAS-Z
+  </text>
+  <text x="18%" y="70%" text-anchor="middle" font-family="'Inter', 'Noto Sans JP', system-ui, -apple-system, sans-serif" font-size="34" font-weight="500" fill="#0d0d0d" letter-spacing="1.5">
+    <tspan x="18%" dy="0">FINANCIAL</tspan>
+    <tspan x="18%" dy="38">AGENT</tspan>
+  </text>
+  <text x="82%" y="70%" text-anchor="middle" font-family="'Inter', 'Noto Sans JP', system-ui, -apple-system, sans-serif" font-size="34" font-weight="500" fill="#0d0d0d" letter-spacing="1.5">
+    <tspan x="82%" dy="0">SINCE</tspan>
+    <tspan x="82%" dy="38">2025</tspan>
+  </text>
+</svg>

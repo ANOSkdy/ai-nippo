@@ -8,6 +8,9 @@ import NavTabsServer from '@/components/NavTabsServer';
 export const metadata: Metadata = {
   title: 'AI日報「スマレポ」',
   description: 'NFCを使ったAI日報システム',
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export default function RootLayout({

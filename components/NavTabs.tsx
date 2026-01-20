@@ -57,4 +57,4 @@ export default function NavTabs({ showNfc = true }: NavTabsProps) {
   );
 }
 
-export { NAV_TABS, isActivePath };
+export { NAV_TABS, filterTabs, isActivePath };

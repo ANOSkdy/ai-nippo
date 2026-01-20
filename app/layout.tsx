@@ -20,8 +20,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-brand-surface text-brand-text">
         <SkipLink />
         <header className="sticky top-0 z-50 border-b border-brand-border bg-brand-surface/90 backdrop-blur">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-            <p className="text-lg font-semibold text-brand-primary">スマレポ</p>
+          <div className="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6">
             <NavTabsServer />
           </div>
         </header>

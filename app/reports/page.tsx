@@ -1,7 +1,6 @@
 import Link from 'next/link';
 
 import ReportsTabs from '@/components/reports/ReportsTabs';
-import PrintA4Button from '@/components/PrintA4Button';
 import {
   buildReportContext,
   formatHoursFromMinutes,
@@ -10,8 +9,6 @@ import {
   type SearchParams,
   fetchUsers,
 } from './_utils/reportData';
-
-import './print-a4.css';
 
 export default async function ReportsPage({ searchParams }: { searchParams?: SearchParams }) {
   const filters = parseFilters(searchParams);
@@ -49,15 +46,11 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <ReportsTabs />
-      <div className="report-print space-y-6">
+      <div className="space-y-6">
         <header className="space-y-2">
           <h1 className="text-2xl font-semibold text-gray-900">個別集計</h1>
           <p className="text-sm text-gray-600">従業員ごとの IN/OUT ペアリングから稼働時間を算出します。</p>
         </header>
-
-        <div className="_print-toolbar _print-hidden">
-          <PrintA4Button printPath="/reports/print" />
-        </div>
 
         <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6" method="get">
           <div className="flex flex-col">

@@ -4,7 +4,6 @@ import './sites.css';
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ChangeEvent } from 'react';
 import ReportsTabs from '@/components/reports/ReportsTabs';
-import PrintControls from '@/components/PrintControls';
 import { getJstParts } from '@/lib/jstDate';
 import MachineTag from '@/components/MachineTag';
 import { compareMachineId } from '@/lib/utils/sort';
@@ -73,8 +72,6 @@ type ReportResponse = {
 const today = new Date();
 const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 const MIN_DYNAMIC_COLUMNS = 8;
-// 印刷時に1ページへ収める動的列の最大数（固定列4を含めて8列想定）
-const PRINT_COLUMNS_PER_PAGE = 4;
 
 function toText(value: unknown) {
   return typeof value === 'string' ? value : '';
@@ -545,17 +542,6 @@ export default function SiteReportPage() {
     [visibleColumnCount],
   );
 
-  const printColumnChunks = useMemo(() => {
-    const chunkSize = PRINT_COLUMNS_PER_PAGE;
-    const result: { column: ReportColumn; index: number }[][] = [];
-    for (let i = 0; i < indexedColumns.length; i += chunkSize) {
-      result.push(indexedColumns.slice(i, i + chunkSize));
-    }
-    if (result.length === 0) {
-      return [[]] as { column: ReportColumn; index: number }[][];
-    }
-    return result;
-  }, [indexedColumns]);
 
   const handleEmployeeFilterChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const values = Array.from(event.target.selectedOptions)
@@ -568,31 +554,6 @@ export default function SiteReportPage() {
     setEmployeeFilter([]);
   };
 
-  const buildPrintSearchParams = useCallback(() => {
-    const params = new URLSearchParams();
-    if (Number.isFinite(year)) {
-      params.set('year', String(year));
-    }
-    if (Number.isFinite(month)) {
-      params.set('month', String(month));
-    }
-    if (siteId) {
-      params.set('siteId', siteId);
-    }
-    machineFilter.forEach((id) => {
-      const normalized = typeof id === 'string' ? id.trim() : String(id).trim();
-      if (normalized) {
-        params.append('machineIds', normalized);
-      }
-    });
-    employeeFilter.forEach((name) => {
-      const normalized = name.trim();
-      if (normalized) {
-        params.append('employees', normalized);
-      }
-    });
-    return params;
-  }, [employeeFilter, machineFilter, month, siteId, year]);
 
   async function loadReport() {
     if (!siteId || !Number.isFinite(year) || !Number.isFinite(month)) {
@@ -730,12 +691,6 @@ export default function SiteReportPage() {
               >
                 全員を表示
               </button>
-              <PrintControls
-                className="ml-auto"
-                title="現場別集計（A4）"
-                printPath="/reports/sites/print"
-                getSearchParams={buildPrintSearchParams}
-              />
             </div>
           </div>
           <div className="screen-table-wrapper">
@@ -850,104 +805,6 @@ export default function SiteReportPage() {
               </table>
             </div>
           </div>
-          {printColumnChunks.length > 0 ? (
-            <div className="print-table-wrapper">
-              {printColumnChunks.map((chunk, chunkIndex) => {
-                const chunkStyle = {
-                  '--reports-min-cols': String(4 + chunk.length),
-                } as CSSProperties & { '--reports-min-cols': string };
-                const blockClassName =
-                  chunkIndex === 0 ? 'print-table-block' : 'print-table-block print-break-before';
-                return (
-                  <div key={`print-chunk-${chunkIndex}`} className={blockClassName}>
-                    <table className="table-unified text-sm print-avoid-break" style={chunkStyle}>
-                      <thead>
-                        <tr className="bg-gray-50">
-                          <th className="col-narrow border px-2 py-1 text-right">年</th>
-                          <th className="col-narrow border px-2 py-1 text-right">月</th>
-                          <th className="col-narrow border px-2 py-1 text-right">日</th>
-                          <th className="col-narrow border px-2 py-1 text-center">曜</th>
-                          {chunk.map(({ column }) => (
-                            <th key={`print-user-${column.key}`} className="border px-2 py-1 text-left">
-                              {column.userName}
-                            </th>
-                          ))}
-                        </tr>
-                        <tr className="bg-gray-50">
-                          <th className="col-narrow border px-2 py-1" />
-                          <th className="col-narrow border px-2 py-1" />
-                          <th className="col-narrow border px-2 py-1" />
-                          <th className="col-narrow border px-2 py-1" />
-                          {chunk.map(({ column }) => {
-                            const machines = getMachineRefs(column.key);
-                            return (
-                              <th key={`print-work-${column.key}`} className="border px-2 py-1 text-left">
-                                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                                  {machines.length > 0 ? (
-                                    machines.map((machine) => (
-                                      <MachineTag
-                                        key={machine.machineId}
-                                        id={machine.machineId}
-                                        name={machine.machineName ?? null}
-                                      />
-                                    ))
-                                  ) : (
-                                    <MachineTag />
-                                  )}
-                                </div>
-                              </th>
-                            );
-                          })}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {days.map((row) => {
-                          const { year: rowYear, month: rowMonth, day, weekdayJp } = getJstParts(row.date);
-                          return (
-                            <tr key={`${row.date}-chunk-${chunkIndex}`}>
-                              <td className="col-narrow border px-2 py-1 text-right">{rowYear}</td>
-                              <td className="col-narrow border px-2 py-1 text-right">{rowMonth}</td>
-                              <td className="col-narrow border px-2 py-1 text-right">{day}</td>
-                              <td className="col-narrow border px-2 py-1 text-center">{weekdayJp}</td>
-                              {chunk.map(({ column, index }) => (
-                                <td
-                                  key={`${row.date}-print-${column.key}`}
-                                  className="border px-2 py-1 text-right tabular-nums"
-                                >
-                                  {formatQuarterHours(row.values[index])}
-                                </td>
-                              ))}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="bg-gray-100">
-                          <td className="col-narrow border px-2 py-1 font-semibold">稼働合計</td>
-                          <td className="col-narrow border px-2 py-1" />
-                          <td className="col-narrow border px-2 py-1" />
-                          <td className="col-narrow border px-2 py-1" />
-                          {chunk.map(({ column }) => {
-                            const total = totalsByColumnKey.get(column.key);
-                            const safeTotal =
-                              typeof total === 'number' && Number.isFinite(total) ? total : 0;
-                            return (
-                              <td
-                                key={`print-total-${column.key}`}
-                                className="border px-2 py-1 text-right tabular-nums font-semibold"
-                              >
-                                {formatQuarterHours(safeTotal)}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
         </div>
       ) : (
         <p className="text-sm text-gray-500">条件を選択し「集計する」を押すと結果が表示されます。</p>

@@ -31,3 +31,4 @@
 - `/api/stamp` は Logs テーブルに直接書き込み、OUT 打刻後の追加処理は行いません。
 - 日・月次の集計は API 呼び出し時に Logs からオンデマンドで計算します。IN/OUT の突合や稼働時間算出は `lib/airtable/logs.ts` に集約しました。
 - 帳票検索・Excel 出力も Logs ベースで再計算し、ReportIndex/Sessions テーブルへの書き込みは廃止しています。
+- `/reports` 向けの Excel 出力 API は廃止しました。

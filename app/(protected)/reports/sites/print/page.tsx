@@ -18,7 +18,7 @@ type ParsedParams = {
 };
 
 const PRINT_COLUMNS_PER_PAGE = 20;
-const TABLE_TOTAL_COLS = 2 + PRINT_COLUMNS_PER_PAGE;
+const TABLE_TOTAL_COLS = 4 + PRINT_COLUMNS_PER_PAGE;
 
 function toSingleValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
@@ -128,6 +128,8 @@ export default async function SiteReportPrintPage({
                 >
                   <thead>
                     <tr className="bg-gray-50">
+                      <th className="col-narrow border px-1 py-[2px] text-right">年</th>
+                      <th className="col-narrow border px-1 py-[2px] text-right">月</th>
                       <th className="col-narrow border px-1 py-[2px] text-right">日</th>
                       <th className="col-narrow border px-1 py-[2px] text-center">曜</th>
                       {chunk.map(({ column }) => (
@@ -137,6 +139,8 @@ export default async function SiteReportPrintPage({
                       ))}
                     </tr>
                     <tr className="bg-gray-50">
+                      <th className="col-narrow border px-1 py-[2px]" />
+                      <th className="col-narrow border px-1 py-[2px]" />
                       <th className="col-narrow border px-1 py-[2px]" />
                       <th className="col-narrow border px-1 py-[2px]" />
                       {chunk.map(({ column }) => {
@@ -164,6 +168,8 @@ export default async function SiteReportPrintPage({
                     {report.days.map((row) => {
                       return (
                         <tr key={`${row.date}-chunk-${chunkIndex}`}>
+                          <td className="col-narrow border px-1 py-[2px] text-right">{report.year}</td>
+                          <td className="col-narrow border px-1 py-[2px] text-right">{report.month}</td>
                           <td className="col-narrow border px-1 py-[2px] text-right">{row.day}</td>
                           <td className="col-narrow border px-1 py-[2px] text-center">{row.dow}</td>
                           {chunk.map(({ column, index }) => (
@@ -178,6 +184,8 @@ export default async function SiteReportPrintPage({
                   <tfoot>
                     <tr className="bg-gray-100">
                       <td className="col-narrow border px-1 py-[2px] font-semibold">稼働合計</td>
+                      <td className="col-narrow border px-1 py-[2px]" />
+                      <td className="col-narrow border px-1 py-[2px]" />
                       <td className="col-narrow border px-1 py-[2px]" />
                       {chunk.map(({ column }) => {
                         const total = totalsByColumnKey.get(column.key);

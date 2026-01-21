@@ -225,7 +225,10 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
                   <table className="table-unified text-sm">
                     <thead>
                       <tr className="bg-gray-50 text-gray-700">
-                        <th className="border px-3 py-2 text-left font-semibold">日付</th>
+                        <th className="border px-3 py-2 text-left font-semibold">年</th>
+                        <th className="border px-3 py-2 text-left font-semibold">月</th>
+                        <th className="border px-3 py-2 text-left font-semibold">日</th>
+                        <th className="border px-3 py-2 text-left font-semibold">曜</th>
                         <th className="border px-3 py-2 text-left font-semibold">従業員</th>
                         <th className="border px-3 py-2 text-left font-semibold">始業</th>
                         <th className="border px-3 py-2 text-left font-semibold">終業</th>
@@ -242,9 +245,18 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
                           row.recordId ??
                           `${row.year}-${row.month}-${row.day}-${row.siteName ?? ''}-${row.startTimestampMs ?? ''}-${row.endTimestampMs ?? ''}`;
 
+                        const weekdayLabel = new Date(
+                          row.year,
+                          Math.max(0, row.month - 1),
+                          row.day,
+                        ).toLocaleDateString('ja-JP', { weekday: 'short' });
+
                         return (
                           <tr key={rowKey} className="odd:bg-white even:bg-gray-50">
-                            <td className="border px-3 py-2">{row.__dateLabel}</td>
+                            <td className="border px-3 py-2 tabular-nums">{row.year}</td>
+                            <td className="border px-3 py-2 tabular-nums">{row.month}</td>
+                            <td className="border px-3 py-2 tabular-nums">{row.day}</td>
+                            <td className="border px-3 py-2">{weekdayLabel}</td>
                             <td className="border px-3 py-2">{filters.user || '—'}</td>
                             <td className="border px-3 py-2 tabular-nums">{row.startJst ?? '—'}</td>
                             <td className="border px-3 py-2 tabular-nums">

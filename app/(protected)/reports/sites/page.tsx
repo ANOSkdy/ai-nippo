@@ -73,8 +73,8 @@ type ReportResponse = {
 const today = new Date();
 const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 const MIN_DYNAMIC_COLUMNS = 8;
-// 印刷時に1ページへ収める動的列の最大数（固定列2を含めて8列想定）
-const PRINT_COLUMNS_PER_PAGE = 6;
+// 印刷時に1ページへ収める動的列の最大数（固定列4を含めて8列想定）
+const PRINT_COLUMNS_PER_PAGE = 4;
 
 function toText(value: unknown) {
   return typeof value === 'string' ? value : '';
@@ -743,6 +743,8 @@ export default function SiteReportPage() {
               <table className="table-unified text-sm print-avoid-break" style={tableStyle}>
                 <thead>
                   <tr className="bg-gray-50">
+                    <th className="col-narrow border px-2 py-1 text-right">年</th>
+                    <th className="col-narrow border px-2 py-1 text-right">月</th>
                     <th className="col-narrow border px-2 py-1 text-right">日</th>
                     <th className="col-narrow border px-2 py-1 text-center">曜</th>
                     {indexedColumns.map(({ column }) => {
@@ -761,6 +763,8 @@ export default function SiteReportPage() {
                     ))}
                   </tr>
                   <tr className="bg-gray-50">
+                    <th className="col-narrow border px-2 py-1" />
+                    <th className="col-narrow border px-2 py-1" />
                     <th className="col-narrow border px-2 py-1" />
                     <th className="col-narrow border px-2 py-1" />
                     {indexedColumns.map(({ column }) => {
@@ -794,9 +798,11 @@ export default function SiteReportPage() {
                 </thead>
                 <tbody>
                   {days.map((row) => {
-                    const { day, weekdayJp } = getJstParts(row.date);
+                    const { year: rowYear, month: rowMonth, day, weekdayJp } = getJstParts(row.date);
                     return (
                       <tr key={row.date}>
+                        <td className="col-narrow border px-2 py-1 text-right">{rowYear}</td>
+                        <td className="col-narrow border px-2 py-1 text-right">{rowMonth}</td>
                         <td className="col-narrow border px-2 py-1 text-right">{day}</td>
                         <td className="col-narrow border px-2 py-1 text-center">{weekdayJp}</td>
                         {indexedColumns.map(({ column, index }) => {
@@ -820,6 +826,8 @@ export default function SiteReportPage() {
                 <tfoot>
                   <tr className="bg-gray-100">
                     <td className="col-narrow border px-2 py-1 font-semibold">稼働合計</td>
+                    <td className="col-narrow border px-2 py-1" />
+                    <td className="col-narrow border px-2 py-1" />
                     <td className="col-narrow border px-2 py-1" />
                     {indexedColumns.map(({ column }) => {
                       const hidden = hasEmployeeFilter && !selectedEmployeeSet.has(column.userName);
@@ -846,7 +854,7 @@ export default function SiteReportPage() {
             <div className="print-table-wrapper">
               {printColumnChunks.map((chunk, chunkIndex) => {
                 const chunkStyle = {
-                  '--reports-min-cols': String(2 + chunk.length),
+                  '--reports-min-cols': String(4 + chunk.length),
                 } as CSSProperties & { '--reports-min-cols': string };
                 const blockClassName =
                   chunkIndex === 0 ? 'print-table-block' : 'print-table-block print-break-before';
@@ -855,6 +863,8 @@ export default function SiteReportPage() {
                     <table className="table-unified text-sm print-avoid-break" style={chunkStyle}>
                       <thead>
                         <tr className="bg-gray-50">
+                          <th className="col-narrow border px-2 py-1 text-right">年</th>
+                          <th className="col-narrow border px-2 py-1 text-right">月</th>
                           <th className="col-narrow border px-2 py-1 text-right">日</th>
                           <th className="col-narrow border px-2 py-1 text-center">曜</th>
                           {chunk.map(({ column }) => (
@@ -864,6 +874,8 @@ export default function SiteReportPage() {
                           ))}
                         </tr>
                         <tr className="bg-gray-50">
+                          <th className="col-narrow border px-2 py-1" />
+                          <th className="col-narrow border px-2 py-1" />
                           <th className="col-narrow border px-2 py-1" />
                           <th className="col-narrow border px-2 py-1" />
                           {chunk.map(({ column }) => {
@@ -890,9 +902,11 @@ export default function SiteReportPage() {
                       </thead>
                       <tbody>
                         {days.map((row) => {
-                          const { day, weekdayJp } = getJstParts(row.date);
+                          const { year: rowYear, month: rowMonth, day, weekdayJp } = getJstParts(row.date);
                           return (
                             <tr key={`${row.date}-chunk-${chunkIndex}`}>
+                              <td className="col-narrow border px-2 py-1 text-right">{rowYear}</td>
+                              <td className="col-narrow border px-2 py-1 text-right">{rowMonth}</td>
                               <td className="col-narrow border px-2 py-1 text-right">{day}</td>
                               <td className="col-narrow border px-2 py-1 text-center">{weekdayJp}</td>
                               {chunk.map(({ column, index }) => (
@@ -910,6 +924,8 @@ export default function SiteReportPage() {
                       <tfoot>
                         <tr className="bg-gray-100">
                           <td className="col-narrow border px-2 py-1 font-semibold">稼働合計</td>
+                          <td className="col-narrow border px-2 py-1" />
+                          <td className="col-narrow border px-2 py-1" />
                           <td className="col-narrow border px-2 py-1" />
                           {chunk.map(({ column }) => {
                             const total = totalsByColumnKey.get(column.key);

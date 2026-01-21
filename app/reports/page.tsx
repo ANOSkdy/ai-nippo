@@ -5,8 +5,6 @@ import PrintA4Button from '@/components/PrintA4Button';
 import {
   buildReportContext,
   formatHoursFromMinutes,
-  formatMinutesSummary,
-  formatTotalWorkHours,
   formatWorkingHours,
   parseFilters,
   type SearchParams,
@@ -20,19 +18,12 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
 
   const {
     groups,
-    autoCount,
-    overallMinutes,
-    totalRecords,
-    totalDisplayedHours,
-    totalOvertimeHours,
     availableYears,
     availableMonths,
     availableDays,
     availableSites,
   } = await buildReportContext(filters);
 
-  const totalWorkHoursText = formatTotalWorkHours(totalDisplayedHours);
-  const totalOvertimeHoursText = formatTotalWorkHours(totalOvertimeHours);
   const flatItems = groups.flatMap((group) =>
     group.items.map((item) => ({
       ...item,
@@ -40,6 +31,18 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
       __dateLabel: group.dateLabel,
     })),
   );
+  const sortedItems = [...flatItems].sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    if (a.month !== b.month) return a.month - b.month;
+    if (a.day !== b.day) return a.day - b.day;
+    const startA = a.startTimestampMs ?? 0;
+    const startB = b.startTimestampMs ?? 0;
+    if (startA !== startB) return startA - startB;
+    return 0;
+  });
+  const totalWorkingMinutes = flatItems.reduce((sum, row) => sum + row.workingMinutes, 0);
+  const totalOvertimeMinutes = flatItems.reduce((sum, row) => sum + row.overtimeMinutes, 0);
+  const totalSummaryMinutes = totalWorkingMinutes + totalOvertimeMinutes;
 
   const users = await fetchUsers();
 
@@ -196,25 +199,6 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
 
         {filters.user && (
           <section className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-gray-50 px-4 py-3 text-sm text-gray-700">
-              <div className="space-x-2">
-                <span>
-                  合計時間:{' '}
-                  <strong className="tabular-nums">{formatMinutesSummary(overallMinutes)}</strong>
-                </span>
-                <span className="text-xs text-gray-500">(表示: {totalWorkHoursText})</span>
-                <span className="text-xs text-gray-500">超過: {totalOvertimeHoursText}</span>
-              </div>
-              <div className="space-x-2">
-                <span>
-                  計 <strong className="tabular-nums">{totalRecords}</strong>件
-                </span>
-                {autoCount > 0 ? (
-                  <span className="text-xs text-gray-500">自動退勤 {autoCount} 件を含みます</span>
-                ) : null}
-              </div>
-            </div>
-
             {flatItems.length === 0 ? (
               <div className="rounded border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-sm text-gray-500">
                 条件に一致するデータがありません。
@@ -238,7 +222,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
                       </tr>
                     </thead>
                     <tbody className="bg-white text-gray-900">
-                      {flatItems.map((row) => {
+                      {sortedItems.map((row) => {
                         const summaryMinutes = row.workingMinutes + row.overtimeMinutes;
                         const totalHoursText = formatHoursFromMinutes(summaryMinutes);
                         const rowKey =
@@ -284,6 +268,22 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
                         );
                       })}
                     </tbody>
+                    <tfoot className="bg-gray-50 text-gray-700">
+                      <tr>
+                        <td className="border px-3 py-2 font-semibold" colSpan={7}>
+                          合計
+                        </td>
+                        <td className="border px-3 py-2 text-right tabular-nums font-semibold">
+                          {formatWorkingHours(totalWorkingMinutes)}
+                        </td>
+                        <td className="border px-3 py-2 text-right tabular-nums font-semibold">
+                          {formatHoursFromMinutes(totalOvertimeMinutes)}
+                        </td>
+                        <td className="border px-3 py-2 text-right tabular-nums font-semibold">
+                          {formatHoursFromMinutes(totalSummaryMinutes)}
+                        </td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               </div>

@@ -2,7 +2,7 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { buildSiteReport } from '@/app/(protected)/reports/sites/_lib/buildSiteReport';
+import { buildSiteReport } from '@/lib/reports/siteReport';
 
 export async function GET(req: NextRequest) {
   const session = await auth();

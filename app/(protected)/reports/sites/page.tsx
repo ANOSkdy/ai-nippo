@@ -542,6 +542,21 @@ export default function SiteReportPage() {
     [visibleColumnCount],
   );
 
+  const exportUrl = useMemo(() => {
+    if (!reportLoaded || !siteId || !monthValue) {
+      return '';
+    }
+    const params = new URLSearchParams({
+      month: monthValue,
+      siteId,
+    });
+    const machineIds = machineFilter.map((value) => value.trim()).filter(Boolean);
+    if (machineIds.length > 0) {
+      params.set('machineIds', machineIds.join(','));
+    }
+    return `/api/reports/sites/export/excel?${params.toString()}`;
+  }, [machineFilter, monthValue, reportLoaded, siteId]);
+
 
   const handleEmployeeFilterChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const values = Array.from(event.target.selectedOptions)
@@ -691,6 +706,14 @@ export default function SiteReportPage() {
               >
                 全員を表示
               </button>
+              {exportUrl ? (
+                <a
+                  href={exportUrl}
+                  className="rounded border px-3 py-1 text-sm text-indigo-600 hover:bg-indigo-50"
+                >
+                  Excel出力
+                </a>
+              ) : null}
             </div>
           </div>
           <div className="screen-table-wrapper">

@@ -11,6 +11,7 @@ export type LogRecord = {
 };
 
 export type ReportRow = {
+  recordId?: string;
   year: number;
   month: number;
   day: number;

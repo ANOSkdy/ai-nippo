@@ -254,6 +254,7 @@ export async function getReportRowsByUserName(
       const overtimeHours = formatHoursDecimal(overtimeMinutes);
 
       return {
+        recordId: session.id,
         year: session.year ?? 0,
         month: session.month ?? 0,
         day: session.day ?? 0,

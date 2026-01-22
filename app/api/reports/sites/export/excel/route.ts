@@ -138,10 +138,14 @@ export async function GET(req: NextRequest) {
   const totalRow = sheet.addRow(totalRowValues);
   totalRow.font = { bold: true };
 
-  const buffer = await workbook.xlsx.writeBuffer();
+  const out = await workbook.xlsx.writeBuffer();
+  const buffer = Buffer.isBuffer(out) ? out : Buffer.from(out as ArrayBuffer);
+  if (!(buffer[0] === 0x50 && buffer[1] === 0x4b)) {
+    throw new Error('XLSX buffer is not ZIP(PK). exceljs shim might be used.');
+  }
   const filename = `site-report_${monthParam.year}-${String(monthParam.month).padStart(2, '0')}_${siteId}.xlsx`;
 
-  return new NextResponse(buffer, {
+  return new Response(buffer, {
     status: 200,
     headers: {
       'Content-Type':

@@ -26,10 +26,10 @@
       "@/*": [
         "./*"
       ],
-      "exceljs": [
+      "@/lib/exceljs-shim": [
         "./src/lib/exceljs"
       ],
-      "exceljs/*": [
+      "@/lib/exceljs-shim/*": [
         "./src/lib/exceljs/*"
       ]
     }

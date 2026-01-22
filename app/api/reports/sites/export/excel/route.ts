@@ -84,9 +84,10 @@ export async function GET(req: NextRequest) {
   });
 
   const paddingCount = Math.max(0, MIN_DYNAMIC_COLUMNS - report.columns.length);
-  const paddedColumns = report.columns.concat(
-    Array.from({ length: paddingCount }).map(() => null),
-  );
+  const paddedColumns: Array<ReportColumn | null> = [
+    ...report.columns,
+    ...Array.from({ length: paddingCount }, () => null),
+  ];
 
   const headerRow1 = ['年', '月', '日', '曜', ...paddedColumns.map((col) => col?.userName ?? '')];
   const headerRow2 = ['', '', '', '', ...paddedColumns.map((col) => (col ? formatMachineLabel(col) : ''))];

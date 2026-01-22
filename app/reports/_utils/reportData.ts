@@ -1,6 +1,10 @@
 import { usersTable } from '@/lib/airtable';
 import { formatMinutes } from '@/lib/format';
-import { groupReportRowsByDate, type ReportRowGroup } from '@/lib/report-groupers';
+import {
+  groupReportRowsByDate,
+  type ReportRowGroup,
+  type ReportRowWithStats,
+} from '@/lib/report-groupers';
 import type { ReportRow } from '@/lib/reports/pair';
 import { getReportRowsByUserName } from '@/lib/services/reports';
 
@@ -34,6 +38,11 @@ export type ReportContext = {
   availableMonths: number[];
   availableDays: number[];
   availableSites: string[];
+};
+
+export type ReportItem = ReportRowWithStats & {
+  __groupKey: string;
+  __dateLabel: string;
 };
 
 function toSingleValue(value: string | string[] | undefined): string {
@@ -165,4 +174,33 @@ export async function buildReportContext(filters: Filters): Promise<ReportContex
 
 export function formatMinutesSummary(minutes: number): string {
   return formatMinutes(minutes);
+}
+
+export function flattenReportGroups(groups: ReportRowGroup[]): ReportItem[] {
+  return groups.flatMap((group) =>
+    group.items.map((item) => ({
+      ...item,
+      __groupKey: group.key,
+      __dateLabel: group.dateLabel,
+    })),
+  );
+}
+
+export function sortReportItems(items: ReportItem[]): ReportItem[] {
+  return [...items].sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    if (a.month !== b.month) return a.month - b.month;
+    if (a.day !== b.day) return a.day - b.day;
+    const startA = a.startTimestampMs ?? 0;
+    const startB = b.startTimestampMs ?? 0;
+    if (startA !== startB) return startA - startB;
+    return 0;
+  });
+}
+
+export function summarizeReportItems(items: ReportItem[]) {
+  const totalWorkingMinutes = items.reduce((sum, row) => sum + row.workingMinutes, 0);
+  const totalOvertimeMinutes = items.reduce((sum, row) => sum + row.overtimeMinutes, 0);
+  const totalSummaryMinutes = totalWorkingMinutes + totalOvertimeMinutes;
+  return { totalWorkingMinutes, totalOvertimeMinutes, totalSummaryMinutes };
 }

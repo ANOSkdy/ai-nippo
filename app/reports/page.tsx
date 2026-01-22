@@ -3,9 +3,12 @@ import Link from 'next/link';
 import ReportsTabs from '@/components/reports/ReportsTabs';
 import {
   buildReportContext,
+  flattenReportGroups,
   formatHoursFromMinutes,
   formatWorkingHours,
   parseFilters,
+  sortReportItems,
+  summarizeReportItems,
   type SearchParams,
   fetchUsers,
 } from './_utils/reportData';
@@ -21,27 +24,24 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
     availableSites,
   } = await buildReportContext(filters);
 
-  const flatItems = groups.flatMap((group) =>
-    group.items.map((item) => ({
-      ...item,
-      __groupKey: group.key,
-      __dateLabel: group.dateLabel,
-    })),
-  );
-  const sortedItems = [...flatItems].sort((a, b) => {
-    if (a.year !== b.year) return a.year - b.year;
-    if (a.month !== b.month) return a.month - b.month;
-    if (a.day !== b.day) return a.day - b.day;
-    const startA = a.startTimestampMs ?? 0;
-    const startB = b.startTimestampMs ?? 0;
-    if (startA !== startB) return startA - startB;
-    return 0;
-  });
-  const totalWorkingMinutes = flatItems.reduce((sum, row) => sum + row.workingMinutes, 0);
-  const totalOvertimeMinutes = flatItems.reduce((sum, row) => sum + row.overtimeMinutes, 0);
-  const totalSummaryMinutes = totalWorkingMinutes + totalOvertimeMinutes;
+  const flatItems = flattenReportGroups(groups);
+  const sortedItems = sortReportItems(flatItems);
+  const { totalWorkingMinutes, totalOvertimeMinutes, totalSummaryMinutes } =
+    summarizeReportItems(flatItems);
 
   const users = await fetchUsers();
+  const exportUrl = filters.user
+    ? (() => {
+        const params = new URLSearchParams();
+        params.set('user', filters.user);
+        if (filters.site) params.set('site', filters.site);
+        if (filters.year) params.set('year', String(filters.year));
+        if (filters.month) params.set('month', String(filters.month));
+        if (filters.day) params.set('day', String(filters.day));
+        if (filters.auto) params.set('auto', filters.auto);
+        return `/api/reports/export/excel?${params.toString()}`;
+      })()
+    : '';
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
@@ -183,11 +183,21 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
           </div>
         </form>
 
-        <div className="flex items-center justify-between text-xs text-gray-500 _print-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500 _print-hidden">
           <span>※ グリッドの列構成・表記は現行と同じです。必要に応じて上部のフィルターをご利用ください。</span>
-          <Link href="/reports" className="text-indigo-600 underline">
-            条件をクリア
-          </Link>
+          <div className="flex items-center gap-3">
+            {exportUrl ? (
+              <a
+                href={exportUrl}
+                className="rounded border border-indigo-500 px-3 py-1 text-indigo-600 hover:bg-indigo-50"
+              >
+                Excel出力
+              </a>
+            ) : null}
+            <Link href="/reports" className="text-indigo-600 underline">
+              条件をクリア
+            </Link>
+          </div>
         </div>
 
         {filters.user && (

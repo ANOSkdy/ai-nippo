@@ -24,6 +24,14 @@ class Column {
 
 class Row {
   private readonly values: CellValue[] = [];
+  font?: {
+    bold?: boolean;
+  };
+  alignment?: {
+    vertical?: string;
+    horizontal?: string;
+    wrapText?: boolean;
+  };
 
   constructor(private readonly worksheet: Worksheet, readonly number: number) {}
 

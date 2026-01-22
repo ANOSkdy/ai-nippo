@@ -2,7 +2,7 @@ export function formatMinutes(mins: number): string {
   const minutes = Number.isFinite(mins) ? Math.max(0, Math.round(mins)) : 0;
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
-  return `${hours}h ${remainder}m`;
+  return `${hours}:${String(remainder).padStart(2, '0')}`;
 }
 
 export function fmtTime(iso?: string | null): string {

@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 
 import AutoPrintOnMount from '@/components/AutoPrintOnMount';
-import { buildSiteReport } from '@/app/(protected)/reports/sites/_lib/buildSiteReport';
+import { buildSiteReport } from '@/lib/reports/siteReport';
 import { formatQuarterHours } from '../_lib/gridUtils';
 
 import '../sites.css';

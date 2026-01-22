@@ -24,6 +24,14 @@ class Column {
 
 class Row {
   private readonly values: CellValue[] = [];
+  font?: {
+    bold?: boolean;
+  };
+  alignment?: {
+    vertical?: string;
+    horizontal?: string;
+    wrapText?: boolean;
+  };
 
   constructor(private readonly worksheet: Worksheet, readonly number: number) {}
 
@@ -50,6 +58,7 @@ class Worksheet {
   readonly rows = new Map<number, Row>();
   readonly columns = new Map<number, Column>();
   readonly views: WorksheetViews;
+  readonly mergedCells: string[] = [];
   private rowCountValue = 0;
 
   constructor(readonly name: string, options?: { views?: WorksheetViews }) {
@@ -102,6 +111,10 @@ class Worksheet {
     return this.getRow(rowIndex).getCell(columnIndex);
   }
 
+  mergeCells(range: string) {
+    this.mergedCells.push(range);
+  }
+
   toJSON() {
     return {
       name: this.name,
@@ -114,6 +127,7 @@ class Worksheet {
         width: column.width,
       })),
       views: this.views,
+      mergedCells: [...this.mergedCells],
     };
   }
 

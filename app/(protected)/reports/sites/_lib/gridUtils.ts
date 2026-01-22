@@ -2,8 +2,8 @@ import { compareMachineId, type MachineRef } from '@/lib/utils/sort';
 
 /**
  * 四半刻(15分)単位の値をそのまま見せるための表示フォーマッタ
- * - mode: 'h'  -> 1.25h など小数2桁（ぴったりは整数hで表示）
- *         'hm' -> 1h15m の hh:mm 風表示
+ * - mode: 'h'  -> 1.25 など小数2桁（ぴったりは整数で表示）
+ *         'hm' -> 1:15 の hh:mm 風表示
  */
 export function formatQuarterHours(value: number, mode: 'h' | 'hm' = 'h'): string {
   if (!Number.isFinite(value) || value <= 0) return '';
@@ -13,10 +13,10 @@ export function formatQuarterHours(value: number, mode: 'h' | 'hm' = 'h'): strin
   if (mode === 'hm') {
     const h = Math.floor(qmins / 60);
     const m = qmins % 60;
-    return `${h}h${String(m).padStart(2, '0')}m`;
+    return `${h}:${String(m).padStart(2, '0')}`;
   }
   const qhours = qmins / 60;
-  return Number.isInteger(qhours) ? `${qhours}h` : `${qhours.toFixed(2)}h`;
+  return Number.isInteger(qhours) ? `${qhours}` : `${qhours.toFixed(2)}`;
 }
 
 export type SessionRow = {

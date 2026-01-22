@@ -88,10 +88,10 @@ export function formatQuarterHours(minutes: number): string {
   const quarters = Math.round(safe / 15);
   const hours = quarters / 4;
   if (quarters % 4 === 0) {
-    return `${hours.toFixed(1)}h`;
+    return `${hours.toFixed(1)}`;
   }
   const text = hours.toFixed(2).replace(/0$/, '');
-  return `${text}h`;
+  return text;
 }
 
 export function formatWorkingHours(minutes: number): string {
@@ -101,7 +101,7 @@ export function formatWorkingHours(minutes: number): string {
 export function formatTotalWorkHours(hours: number): string {
   const safe = Number.isFinite(hours) ? hours : 0;
   const rounded = Math.round(safe * 10) / 10;
-  return `${rounded.toFixed(1)}h`;
+  return `${rounded.toFixed(1)}`;
 }
 
 export function groupTotalMinutes(group: ReportRowGroup): number {

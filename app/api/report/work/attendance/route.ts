@@ -5,34 +5,8 @@ import {
 } from '@/lib/report/work/attendance/aggregateMonthlyAttendance';
 import { getMonthDateRange } from '@/lib/report/work/attendance/dateUtils';
 import { fetchAttendanceSessions } from '@/lib/report/work/attendance/sessions';
-import { AirtableError, listRecords } from '@/src/lib/airtable/client';
-import type { SiteFields } from '@/types';
-
-const SITES_TABLE = 'Sites';
-
-function escapeFormulaValue(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-
-async function resolveSiteName(siteId?: string, siteName?: string): Promise<string | null> {
-  if (siteName && siteName.trim().length > 0) {
-    return siteName.trim();
-  }
-  if (!siteId) {
-    return null;
-  }
-  const records = await listRecords<SiteFields>({
-    table: SITES_TABLE,
-    filterByFormula: `{siteId} = "${escapeFormulaValue(siteId)}"`,
-    maxRecords: 1,
-    fields: ['name', 'siteId'],
-  });
-  const name = records[0]?.fields?.name;
-  if (typeof name === 'string' && name.trim().length > 0) {
-    return name.trim();
-  }
-  return null;
-}
+import { resolveSiteName } from '@/lib/report/work/attendance/siteUtils';
+import { AirtableError } from '@/src/lib/airtable/client';
 
 function parseAirtableErrorDetails(error: AirtableError): unknown {
   try {
@@ -91,7 +65,6 @@ export async function GET(req: Request) {
       startDate: range.startDate,
       endDate: range.endDate,
       userId,
-      siteId,
       siteName: resolvedSiteName ?? undefined,
       machineId: machineId != null ? String(machineId) : null,
     });
@@ -135,6 +108,6 @@ export async function GET(req: Request) {
     }
     console.error('[/api/report/work/attendance] error', error);
     const message = error instanceof Error ? error.message : 'internal error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ message: 'internal error', details: message }, { status: 500 });
   }
 }

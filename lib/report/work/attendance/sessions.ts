@@ -13,7 +13,6 @@ export type AttendanceSession = {
   endMs: number | null;
   durationMin: number | null;
   siteName: string | null;
-  siteRecordId: string | null;
   workDescription: string | null;
   userId: number | null;
   userRecordId: string | null;
@@ -27,7 +26,6 @@ export type AttendanceSessionQuery = {
   startDate: string;
   endDate: string;
   userId?: number | null;
-  siteId?: string | null;
   siteName?: string | null;
   machineId?: string | null;
 };
@@ -170,7 +168,6 @@ function toSessionRow(record: RawSessionRecord): AttendanceSession | null {
   const end = pickFirstString(fields, ['end', 'end (JST)']);
   const durationMin = asNumber(getFieldValue(fields, 'durationMin'));
   const siteName = pickFirstString(fields, ['siteName', 'site name', 'site Name']);
-  const siteRecordId = firstId(getFieldValue(fields, 'site'));
   const workDescription = pickFirstString(fields, [
     'workDescription',
     'work description',
@@ -219,7 +216,6 @@ function toSessionRow(record: RawSessionRecord): AttendanceSession | null {
     endMs: normalizedEndMs,
     durationMin: durationMin ?? computedDuration,
     siteName,
-    siteRecordId,
     workDescription,
     userId: rawUserId,
     userRecordId,
@@ -340,11 +336,6 @@ function matchesQuery(row: AttendanceSession, query: AttendanceSessionQuery): bo
   if (query.userId != null && row.userId !== query.userId) {
     return false;
   }
-  if (query.siteId) {
-    if (row.siteRecordId && row.siteRecordId !== query.siteId) {
-      return false;
-    }
-  }
   if (query.siteName) {
     const expected = normalizeText(query.siteName);
     const actual = normalizeText(row.siteName);
@@ -378,7 +369,6 @@ export async function fetchAttendanceSessions(query: AttendanceSessionQuery): Pr
         'end',
         'durationMin',
         'siteName',
-        'site',
         'userId',
         'userId (from user)',
         'user',

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { computeDailyAttendance } from '@/lib/report/work/attendance/aggregateMonthlyAttendance';
 import { fetchAttendanceSessions } from '@/lib/report/work/attendance/sessions';
+import { resolveSiteName } from '@/lib/report/work/attendance/siteUtils';
 
 function parseDateParam(value: string | null): string | null {
   if (!value) {
@@ -45,12 +46,18 @@ export async function GET(req: Request) {
   }
 
   try {
+    const resolvedSiteName = await resolveSiteName(siteId, siteName);
+    if (siteId && !siteName && !resolvedSiteName) {
+      return NextResponse.json(
+        { message: 'siteId not found', details: { siteId } },
+        { status: 404 },
+      );
+    }
     const sessions = await fetchAttendanceSessions({
       startDate: dateParam,
       endDate: dateParam,
       userId,
-      siteId,
-      siteName,
+      siteName: resolvedSiteName ?? undefined,
       machineId: machineId != null ? String(machineId) : null,
     });
 

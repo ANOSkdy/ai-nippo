@@ -1,6 +1,6 @@
 import { usersTable, withRetry } from '@/lib/airtable';
 import type { UserFields } from '@/types';
-import { listRecords } from '@/src/lib/airtable/client';
+import { AirtableError, listRecords } from '@/src/lib/airtable/client';
 
 const SESSIONS_TABLE = 'Sessions';
 
@@ -238,25 +238,22 @@ function normalizeText(value: string | null | undefined): string | null {
 }
 
 function escapeFormulaValue(value: string): string {
-  return value.replace(/'/g, "\\'");
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 function buildFilterFormula(query: AttendanceSessionQuery): string {
   const clauses: string[] = [];
-  clauses.push(`{date} >= '${escapeFormulaValue(query.startDate)}'`);
-  clauses.push(`{date} <= '${escapeFormulaValue(query.endDate)}'`);
+  clauses.push(`{date} >= "${escapeFormulaValue(query.startDate)}"`);
+  clauses.push(`{date} <= "${escapeFormulaValue(query.endDate)}"`);
 
   if (query.userId != null) {
     clauses.push(`{userId} = ${Math.round(query.userId)}`);
   }
-  if (query.siteId) {
-    clauses.push(`FIND('${escapeFormulaValue(query.siteId)}', ARRAYJOIN({site}))`);
-  }
   if (query.siteName) {
-    clauses.push(`{siteName} = '${escapeFormulaValue(query.siteName)}'`);
+    clauses.push(`{siteName} = "${escapeFormulaValue(query.siteName)}"`);
   }
   if (query.machineId) {
-    clauses.push(`{machineId} = '${escapeFormulaValue(String(query.machineId))}'`);
+    clauses.push(`{machineId} = "${escapeFormulaValue(String(query.machineId))}"`);
   }
 
   if (clauses.length === 1) {
@@ -370,35 +367,56 @@ function matchesQuery(row: AttendanceSession, query: AttendanceSessionQuery): bo
  */
 export async function fetchAttendanceSessions(query: AttendanceSessionQuery): Promise<AttendanceSession[]> {
   const filterByFormula = buildFilterFormula(query);
-  const records = await listRecords<SessionFields>({
-    table: SESSIONS_TABLE,
-    filterByFormula,
-    fields: [
-      'date',
-      'start',
-      'end',
-      'durationMin',
-      'siteName',
-      'site',
-      'userId',
-      'userId (from user)',
-      'user',
-      'userName',
-      'username',
-      'name (from user)',
-      'machineId',
-      'machineId (from machine)',
-      'machine',
-      'machineName',
-      'machineName (from machine)',
-      'workDescription',
-      'status',
-    ],
-    sort: [
-      { field: 'date', direction: 'asc' },
-      { field: 'start', direction: 'asc' },
-    ],
-  });
+  let records: Awaited<ReturnType<typeof listRecords<SessionFields>>>;
+  try {
+    records = await listRecords<SessionFields>({
+      table: SESSIONS_TABLE,
+      filterByFormula,
+      fields: [
+        'date',
+        'start',
+        'end',
+        'durationMin',
+        'siteName',
+        'site',
+        'userId',
+        'userId (from user)',
+        'user',
+        'userName',
+        'username',
+        'name (from user)',
+        'machineId',
+        'machineId (from machine)',
+        'machine',
+        'machineName',
+        'machineName (from machine)',
+        'workDescription',
+        'status',
+      ],
+      sort: [
+        { field: 'date', direction: 'asc' },
+        { field: 'start', direction: 'asc' },
+      ],
+    });
+  } catch (error) {
+    if (error instanceof AirtableError) {
+      let message = error.message;
+      try {
+        const parsed = JSON.parse(error.message) as { error?: { message?: string } };
+        if (parsed?.error?.message) {
+          message = parsed.error.message;
+        }
+      } catch {
+        // keep original message
+      }
+      console.error('[attendance] AirtableError', {
+        status: error.status,
+        message,
+        filterByFormula,
+      });
+    }
+    throw error;
+  }
 
   const rows = records
     .map((record) => toSessionRow(record as RawSessionRecord))

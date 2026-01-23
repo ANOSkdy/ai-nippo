@@ -376,9 +376,7 @@ export async function fetchAttendanceSessions(query: AttendanceSessionQuery): Pr
     fields: [
       'date',
       'start',
-      'start (JST)',
       'end',
-      'end (JST)',
       'durationMin',
       'siteName',
       'site',

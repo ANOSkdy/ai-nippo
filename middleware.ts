@@ -3,9 +3,9 @@ import type { NextRequest } from 'next/server';
 import { warnOnce } from '@/lib/warn-once';
 import { ROUTES } from '@/src/constants/routes';
 
-let cachedAuthMiddleware:
-  | ((req: NextRequest) => Promise<Response | null | undefined>)
-  | null = null;
+type MiddlewareHandler = (req: NextRequest) => Promise<Response | null | undefined>;
+
+let cachedAuthMiddleware: MiddlewareHandler | null = null;
 
 const getAuthMiddleware = async () => {
   if (cachedAuthMiddleware) {
@@ -13,7 +13,7 @@ const getAuthMiddleware = async () => {
   }
 
   const { auth } = await import('@/lib/auth');
-  cachedAuthMiddleware = auth;
+  cachedAuthMiddleware = auth as unknown as MiddlewareHandler;
   return cachedAuthMiddleware;
 };
 

@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto';
 import { warnOnce } from '@/lib/warn-once';
 
 type AuthSecretSource = 'AUTH_SECRET' | 'NEXTAUTH_SECRET' | 'development';
@@ -10,7 +9,13 @@ type AuthSecret = {
 
 let cachedSecret: AuthSecret | null = null;
 
-const createDevFallbackSecret = () => randomBytes(32).toString('hex');
+const createDevFallbackSecret = () => {
+  const bytes = new Uint8Array(32);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes)
+    .map((value) => value.toString(16).padStart(2, '0'))
+    .join('');
+};
 
 export const getAuthSecret = (): AuthSecret => {
   if (cachedSecret) {

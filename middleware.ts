@@ -3,7 +3,9 @@ import type { NextRequest } from 'next/server';
 import { warnOnce } from '@/lib/warn-once';
 import { ROUTES } from '@/src/constants/routes';
 
-let cachedAuthMiddleware: ((req: NextRequest) => Promise<Response>) | null = null;
+let cachedAuthMiddleware:
+  | ((req: NextRequest) => Promise<Response | null | undefined>)
+  | null = null;
 
 const getAuthMiddleware = async () => {
   if (cachedAuthMiddleware) {
@@ -11,7 +13,7 @@ const getAuthMiddleware = async () => {
   }
 
   const { auth } = await import('@/lib/auth');
-  cachedAuthMiddleware = auth(() => NextResponse.next());
+  cachedAuthMiddleware = auth;
   return cachedAuthMiddleware;
 };
 
@@ -23,7 +25,8 @@ const isProtectedPath = (pathname: string) =>
 export const middleware = async (request: NextRequest) => {
   try {
     const authMiddleware = await getAuthMiddleware();
-    return await authMiddleware(request);
+    const result = await authMiddleware(request);
+    return result ?? NextResponse.next();
   } catch (error) {
     warnOnce('auth_middleware_failed', 'Auth middleware failed; allowing request to continue.', {
       error: error instanceof Error ? error.message : error,

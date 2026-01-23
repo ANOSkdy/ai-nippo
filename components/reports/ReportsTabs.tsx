@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 const REPORT_TABS = [
   { href: '/reports', label: '個別集計' },
   { href: '/reports/sites', label: '現場別集計' },
+  { href: '/reports/attendance', label: '勤怠' },
 ] as const;
 
 const RECORD_ADJUST_URL = 'https://forms.gle/hKbhCwxUFDFpHGNUA';

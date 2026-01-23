@@ -1,0 +1,97 @@
+import { NextResponse } from 'next/server';
+import { computeDailyAttendance } from '@/lib/report/work/attendance/aggregateMonthlyAttendance';
+import { fetchAttendanceSessions } from '@/lib/report/work/attendance/sessions';
+
+function parseDateParam(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}
+
+function parseNumberParam(value: string | null, label: string): number | null {
+  if (value == null || value.trim().length === 0) {
+    return null;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`${label} must be a number`);
+  }
+  return parsed;
+}
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const dateParam = parseDateParam(searchParams.get('date'));
+  const siteId = searchParams.get('siteId') || undefined;
+  const siteName = searchParams.get('siteName') || undefined;
+
+  if (!dateParam) {
+    return NextResponse.json({ error: 'date must be YYYY-MM-DD format' }, { status: 400 });
+  }
+
+  let userId: number | null = null;
+  let machineId: number | null = null;
+  try {
+    userId = parseNumberParam(searchParams.get('userId'), 'userId');
+    machineId = parseNumberParam(searchParams.get('machineId'), 'machineId');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'invalid params';
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  if (userId == null) {
+    return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+  }
+
+  try {
+    const sessions = await fetchAttendanceSessions({
+      startDate: dateParam,
+      endDate: dateParam,
+      userId,
+      siteId,
+      siteName,
+      machineId: machineId != null ? String(machineId) : null,
+    });
+
+    const calculation = computeDailyAttendance(sessions);
+    const userName = sessions.find((session) => session.userName)?.userName ?? null;
+
+    return NextResponse.json(
+      {
+        user: {
+          userId,
+          name: userName,
+        },
+        date: dateParam,
+        sessions: sessions.map((session) => ({
+          sessionId: session.id,
+          start: session.start,
+          end: session.end,
+          durationMin: session.durationMin,
+          siteName: session.siteName,
+          machineId: session.machineId,
+          machineName: session.machineName,
+          workDescription: session.workDescription,
+          status: session.status,
+        })),
+        calculation: {
+          activeMinutes: calculation.activeMinutes,
+          grossMinutes: calculation.grossMinutes,
+          gapMinutes: calculation.gapMinutes,
+          standardBreakMinutes: calculation.standardBreakMinutes,
+          deductBreakMinutes: calculation.deductBreakMinutes,
+          netMinutes: calculation.netMinutes,
+          roundedMinutes: calculation.roundedMinutes,
+          roundedHours: calculation.roundedHours,
+          anomalies: calculation.anomalies,
+        },
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error('[/api/report/work/attendance/day] error', error);
+    const message = error instanceof Error ? error.message : 'internal error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

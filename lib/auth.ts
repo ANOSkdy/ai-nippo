@@ -3,9 +3,9 @@ import Credentials from 'next-auth/providers/credentials';
 import type { User } from 'next-auth';
 import { usersTable } from '@/lib/airtable';
 import { ROUTES } from '@/src/constants/routes';
-import { resolveAuthSecret } from '@/lib/auth-secret';
+import { getAuthSecret } from '@/src/lib/env';
 
-const { value: secret, source: secretSource } = resolveAuthSecret();
+const { value: secret, source: secretSource } = getAuthSecret();
 
 export const {
   handlers: { GET, POST },

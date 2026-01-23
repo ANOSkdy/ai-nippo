@@ -12,7 +12,7 @@ let cachedSecret: AuthSecret | null = null;
 
 const createDevFallbackSecret = () => randomBytes(32).toString('hex');
 
-export const resolveAuthSecret = (): AuthSecret => {
+export const getAuthSecret = (): AuthSecret => {
   if (cachedSecret) {
     return cachedSecret;
   }
@@ -33,6 +33,11 @@ export const resolveAuthSecret = (): AuthSecret => {
   const nodeEnv = process.env.NODE_ENV;
   const isVercelDeploy = vercelEnv === 'production' || vercelEnv === 'preview';
 
+  warnOnce(
+    'auth_secret_missing',
+    'AUTH_SECRET is not set. Set AUTH_SECRET (preferred) or NEXTAUTH_SECRET in .env or Vercel env vars.',
+  );
+
   if (isVercelDeploy) {
     throw new Error(
       'AUTH_SECRET is required on Vercel. Set AUTH_SECRET (preferred) or NEXTAUTH_SECRET for Preview/Production.',
@@ -40,10 +45,6 @@ export const resolveAuthSecret = (): AuthSecret => {
   }
 
   if (nodeEnv === 'development') {
-    warnOnce(
-      'auth-secret-missing',
-      'AUTH_SECRET is not set. Set AUTH_SECRET (preferred) or NEXTAUTH_SECRET in .env for stable sessions. Using a temporary development secret.',
-    );
     cachedSecret = { value: createDevFallbackSecret(), source: 'development' };
     return cachedSecret;
   }

@@ -19,6 +19,7 @@ type MachineMaster = {
   id: string;
   fields?: {
     machineid?: string | null;
+    machineId?: string | null;
     name?: string | null;
   };
 };
@@ -100,7 +101,7 @@ export default function AttendanceMonthlyTab() {
   const machineOptions = useMemo(() => {
     return machines
       .map((machine) => ({
-        id: toText(machine.fields?.machineid),
+        id: toText(machine.fields?.machineid ?? machine.fields?.machineId),
         name: toText(machine.fields?.name),
       }))
       .filter((machine) => machine.id.length > 0)

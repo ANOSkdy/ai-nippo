@@ -4,10 +4,10 @@ import type { User } from 'next-auth';
 import { usersTable } from '@/lib/airtable';
 import { ROUTES } from '@/src/constants/routes';
 
-const devFallbackSecret = process.env.NODE_ENV === 'development' ? 'dev-secret' : undefined;
+const devFallbackSecret = process.env.NODE_ENV !== 'production' ? 'dev-secret' : undefined;
 const secret = process.env.NEXTAUTH_SECRET ?? devFallbackSecret;
-if (!process.env.NEXTAUTH_SECRET && process.env.NODE_ENV === 'development') {
-  console.warn('NEXTAUTH_SECRET is not set; using development fallback secret');
+if (!process.env.NEXTAUTH_SECRET && process.env.NODE_ENV !== 'production') {
+  console.warn('NEXTAUTH_SECRET is not set; using non-production fallback secret');
 } else if (!secret) {
   console.error('NEXTAUTH_SECRET is not set');
 }

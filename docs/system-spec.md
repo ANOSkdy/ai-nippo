@@ -32,3 +32,8 @@
 - 日・月次の集計は API 呼び出し時に Logs からオンデマンドで計算します。IN/OUT の突合や稼働時間算出は `lib/airtable/logs.ts` に集約しました。
 - 帳票検索・Excel 出力も Logs ベースで再計算し、ReportIndex/Sessions テーブルへの書き込みは廃止しています。
 - `/reports` 向けの Excel 出力 API は廃止しました。
+
+## Vercel 環境変数設定（Preview/Production）
+1. Vercel の Project Settings → Environment Variables を開きます。
+2. `AUTH_SECRET`（推奨。互換で `NEXTAUTH_SECRET` も可）を Preview/Production の両方に登録します。
+3. 追加・更新後に Preview/Production を再デプロイします。

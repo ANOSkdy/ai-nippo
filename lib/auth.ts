@@ -3,14 +3,9 @@ import Credentials from 'next-auth/providers/credentials';
 import type { User } from 'next-auth';
 import { usersTable } from '@/lib/airtable';
 import { ROUTES } from '@/src/constants/routes';
+import { resolveAuthSecret } from '@/lib/auth-secret';
 
-const devFallbackSecret = process.env.NODE_ENV !== 'production' ? 'dev-secret' : undefined;
-const secret = process.env.NEXTAUTH_SECRET ?? devFallbackSecret;
-if (!process.env.NEXTAUTH_SECRET && process.env.NODE_ENV !== 'production') {
-  console.warn('NEXTAUTH_SECRET is not set; using non-production fallback secret');
-} else if (!secret) {
-  console.error('NEXTAUTH_SECRET is not set');
-}
+const { value: secret, source: secretSource } = resolveAuthSecret();
 
 export const {
   handlers: { GET, POST },
@@ -97,6 +92,7 @@ export const {
         metadata,
         secretPresent: Boolean(secret),
         secretLength: secret?.length,
+        secretSource,
       });
     },
   },

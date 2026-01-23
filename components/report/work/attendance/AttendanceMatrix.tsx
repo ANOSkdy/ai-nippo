@@ -86,18 +86,25 @@ export default function AttendanceMatrix({ days, rows, onSelectCell }: Attendanc
                 return (
                   <td
                     key={`${row.name}-${day.date}`}
-                    className={`border-r border-gray-100 px-2 py-2 text-center text-xs ${
+                    className={`border-r border-gray-100 p-0 text-center text-xs ${
                       day.isWeekend ? 'bg-rose-50' : 'bg-white'
-                    } ${isClickable ? 'cursor-pointer hover:bg-indigo-50' : 'text-gray-400'}`}
-                    onClick={() => {
-                      if (!isClickable) return;
-                      onSelectCell({ userId: row.userId, userName: row.name, date: day.date });
-                    }}
+                    } ${isClickable ? 'hover:bg-indigo-50' : 'text-gray-400'}`}
                   >
-                    <span className="inline-flex items-center gap-1 tabular-nums">
-                      <span>{formatHours(hours, true)}</span>
-                      {hasAnomaly ? <span className="text-amber-600">⚠︎</span> : null}
-                    </span>
+                    <button
+                      type="button"
+                      className={`h-full w-full px-2 py-2 text-xs ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
+                      disabled={!isClickable}
+                      onClick={() => {
+                        if (!isClickable) return;
+                        onSelectCell({ userId: row.userId, userName: row.name, date: day.date });
+                      }}
+                      aria-label={`${row.name} ${day.date} ${formatHours(hours, true)}`}
+                    >
+                      <span className="inline-flex items-center gap-1 tabular-nums">
+                        <span>{formatHours(hours, true)}</span>
+                        {hasAnomaly ? <span className="text-amber-600">⚠︎</span> : null}
+                      </span>
+                    </button>
                   </td>
                 );
               })}

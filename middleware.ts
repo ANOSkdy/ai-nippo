@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 
-export function middleware(request: NextRequest) {
+export default auth((request) => {
   if (request.nextUrl.pathname.startsWith("/login")) {
     return NextResponse.next();
   }
-  return auth(request);
-}
+
+  if (!request.auth) {
+    const loginUrl = new URL("/login", request.nextUrl);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return NextResponse.next();
+});
 
 // この設定で、どのページを認証保護の対象にするかを定義します
 export const config = {

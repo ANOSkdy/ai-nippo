@@ -4,6 +4,7 @@ import {
   type AttendanceUser,
 } from '@/lib/report/work/attendance/aggregateMonthlyAttendance';
 import { getMonthDateRange } from '@/lib/report/work/attendance/dateUtils';
+import { normalizeSession } from '@/lib/report/work/attendance/normalize';
 import { fetchAttendanceSessions } from '@/lib/report/work/attendance/sessions';
 import { resolveSiteName } from '@/lib/report/work/attendance/siteUtils';
 import { AirtableError } from '@/src/lib/airtable/client';
@@ -62,13 +63,13 @@ export async function GET(req: Request) {
       );
     }
 
-    const sessions = await fetchAttendanceSessions({
+    const sessions = (await fetchAttendanceSessions({
       startDate: range.startDate,
       endDate: range.endDate,
       userId,
       siteName: resolvedSiteName ?? undefined,
       machineId: machineId != null ? String(machineId) : null,
-    });
+    })).map(normalizeSession);
 
     const usersMap = new Map<string, AttendanceUser>();
     for (const session of sessions) {

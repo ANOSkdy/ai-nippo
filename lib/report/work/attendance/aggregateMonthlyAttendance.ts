@@ -1,6 +1,7 @@
 import { getTimeCalcConfig, hoursFromMinutes, roundToStep } from '@/src/lib/timecalc';
 import { getStandardBreakMinutes } from './breakRules';
 import { buildMonthDays, type AttendanceDay } from './dateUtils';
+import { normalizeSessionStatus } from './normalize';
 import type { AttendanceSession } from './sessions';
 
 export type AttendanceDaySummary = {
@@ -95,9 +96,10 @@ export function computeDailyAttendance(sessionsForDay: AttendanceSession[]): Att
   const intervals: AttendanceInterval[] = [];
 
   for (const session of sessionsForDay) {
-    const statusText = session.status?.toLowerCase() ?? null;
-    if (!statusText || statusText !== 'closed') {
-      anomalies.push(`status:${session.status ?? 'unknown'}:${session.id}`);
+    const statusNormalized = session.statusNormalized ?? normalizeSessionStatus(session.status);
+    if (statusNormalized === 'unknown' || statusNormalized === 'other') {
+      const statusLabel = session.statusRaw ?? session.status ?? statusNormalized;
+      anomalies.push(`status:${statusLabel}:${session.id}`);
     }
     if (session.startMs == null || session.endMs == null) {
       anomalies.push(`missing-range:${session.id}`);

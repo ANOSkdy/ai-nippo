@@ -175,9 +175,9 @@ function toSessionRow(record: RawSessionRecord): AttendanceSession | null {
     'description (from work)',
   ]);
 
-  const rawUserId =
-    asNumber(getFieldValue(fields, 'userId')) ?? asNumber(getFieldValue(fields, 'userId (from user)'));
-  const userRecordId = firstId(getFieldValue(fields, 'user'));
+  const userField = getFieldValue(fields, 'user');
+  const rawUserId = asNumber(userField);
+  const userRecordId = firstId(userField);
   const userName = extractUserName(fields);
 
   const machineIdValue = pickFirstString(fields, [
@@ -243,7 +243,7 @@ function buildFilterFormula(query: AttendanceSessionQuery): string {
   clauses.push(`{date} <= "${escapeFormulaValue(query.endDate)}"`);
 
   if (query.userId != null) {
-    clauses.push(`{userId} = ${Math.round(query.userId)}`);
+    clauses.push(`{user} = ${Math.round(query.userId)}`);
   }
   if (query.siteName) {
     clauses.push(`{siteName} = "${escapeFormulaValue(query.siteName)}"`);
@@ -369,11 +369,7 @@ export async function fetchAttendanceSessions(query: AttendanceSessionQuery): Pr
         'end',
         'durationMin',
         'siteName',
-        'userId',
-        'userId (from user)',
         'user',
-        'userName',
-        'username',
         'name (from user)',
         'machineId',
         'machineId (from machine)',

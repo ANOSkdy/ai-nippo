@@ -1,16 +1,24 @@
-export { auth as middleware } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+
+export default auth((request) => {
+  if (request.nextUrl.pathname.startsWith("/login")) {
+    return NextResponse.next();
+  }
+
+  if (!request.auth) {
+    const loginUrl = new URL("/login", request.nextUrl);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return NextResponse.next();
+});
 
 // この設定で、どのページを認証保護の対象にするかを定義します
 export const config = {
   matcher: [
-    /*
-     * 以下のパスを除く、すべてのリクエストパスを認証の対象とする
-     * - /api/ (APIルート)
-     * - /_next/static (静的ファイル)
-     * - /_next/image (画像最適化ファイル)
-     * - /favicon.ico (ファビコンファイル)
-     * - /login (ログインページ)
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico|login).*)",
+    "/reports/:path*",
+    "/dashboard/:path*",
+    "/report/:path*",
   ],
 };

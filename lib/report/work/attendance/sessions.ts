@@ -13,7 +13,6 @@ export type AttendanceSession = {
   endMs: number | null;
   durationMin: number | null;
   siteName: string | null;
-  siteRecordId: string | null;
   workDescription: string | null;
   userId: number | null;
   userRecordId: string | null;
@@ -27,7 +26,6 @@ export type AttendanceSessionQuery = {
   startDate: string;
   endDate: string;
   userId?: number | null;
-  siteId?: string | null;
   siteName?: string | null;
   machineId?: string | null;
 };
@@ -170,7 +168,6 @@ function toSessionRow(record: RawSessionRecord): AttendanceSession | null {
   const end = pickFirstString(fields, ['end', 'end (JST)']);
   const durationMin = asNumber(getFieldValue(fields, 'durationMin'));
   const siteName = pickFirstString(fields, ['siteName', 'site name', 'site Name']);
-  const siteRecordId = firstId(getFieldValue(fields, 'site'));
   const workDescription = pickFirstString(fields, [
     'workDescription',
     'work description',
@@ -178,23 +175,21 @@ function toSessionRow(record: RawSessionRecord): AttendanceSession | null {
     'description (from work)',
   ]);
 
-  const rawUserId =
-    asNumber(getFieldValue(fields, 'userId')) ?? asNumber(getFieldValue(fields, 'userId (from user)'));
-  const userRecordId = firstId(getFieldValue(fields, 'user'));
+  const userField = getFieldValue(fields, 'user');
+  const rawUserId = asNumber(userField);
+  const userRecordId = firstId(userField);
   const userName = extractUserName(fields);
 
   const machineIdValue = pickFirstString(fields, [
     'machineId',
-    'machineId (from machine)',
     'machine id',
     'machineid',
   ]);
   const machineIdNumber =
-    asNumber(getFieldValue(fields, 'machineId')) ?? asNumber(getFieldValue(fields, 'machineId (from machine)'));
+    asNumber(getFieldValue(fields, 'machineId'));
   const machineId = machineIdValue ?? (machineIdNumber != null ? String(machineIdNumber) : null);
   const machineName = pickFirstString(fields, [
     'machineName',
-    'machineName (from machine)',
     'machine name',
     'machinename',
   ]);
@@ -219,7 +214,6 @@ function toSessionRow(record: RawSessionRecord): AttendanceSession | null {
     endMs: normalizedEndMs,
     durationMin: durationMin ?? computedDuration,
     siteName,
-    siteRecordId,
     workDescription,
     userId: rawUserId,
     userRecordId,
@@ -247,7 +241,7 @@ function buildFilterFormula(query: AttendanceSessionQuery): string {
   clauses.push(`{date} <= "${escapeFormulaValue(query.endDate)}"`);
 
   if (query.userId != null) {
-    clauses.push(`{userId} = ${Math.round(query.userId)}`);
+    clauses.push(`{user} = ${Math.round(query.userId)}`);
   }
   if (query.siteName) {
     clauses.push(`{siteName} = "${escapeFormulaValue(query.siteName)}"`);
@@ -340,11 +334,6 @@ function matchesQuery(row: AttendanceSession, query: AttendanceSessionQuery): bo
   if (query.userId != null && row.userId !== query.userId) {
     return false;
   }
-  if (query.siteId) {
-    if (row.siteRecordId && row.siteRecordId !== query.siteId) {
-      return false;
-    }
-  }
   if (query.siteName) {
     const expected = normalizeText(query.siteName);
     const actual = normalizeText(row.siteName);
@@ -378,18 +367,11 @@ export async function fetchAttendanceSessions(query: AttendanceSessionQuery): Pr
         'end',
         'durationMin',
         'siteName',
-        'site',
-        'userId',
-        'userId (from user)',
         'user',
-        'userName',
-        'username',
         'name (from user)',
         'machineId',
-        'machineId (from machine)',
         'machine',
         'machineName',
-        'machineName (from machine)',
         'workDescription',
         'status',
       ],

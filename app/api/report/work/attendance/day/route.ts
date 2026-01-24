@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { computeDailyAttendance } from '@/lib/report/work/attendance/aggregateMonthlyAttendance';
 import { fetchAttendanceSessions } from '@/lib/report/work/attendance/sessions';
+import { resolveSiteName } from '@/lib/report/work/attendance/siteUtils';
 
 function parseDateParam(value: string | null): string | null {
   if (!value) {
@@ -33,7 +34,8 @@ export async function GET(req: Request) {
   let userId: number | null = null;
   let machineId: number | null = null;
   try {
-    userId = parseNumberParam(searchParams.get('userId'), 'userId');
+    const userParam = searchParams.get('user') ?? searchParams.get('userId');
+    userId = parseNumberParam(userParam, 'user');
     machineId = parseNumberParam(searchParams.get('machineId'), 'machineId');
   } catch (error) {
     const message = error instanceof Error ? error.message : 'invalid params';
@@ -41,16 +43,22 @@ export async function GET(req: Request) {
   }
 
   if (userId == null) {
-    return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    return NextResponse.json({ error: 'user is required' }, { status: 400 });
   }
 
   try {
+    const resolvedSiteName = await resolveSiteName(siteId, siteName);
+    if (siteId && !siteName && !resolvedSiteName) {
+      return NextResponse.json(
+        { message: 'siteId not found', details: { siteId } },
+        { status: 404 },
+      );
+    }
     const sessions = await fetchAttendanceSessions({
       startDate: dateParam,
       endDate: dateParam,
       userId,
-      siteId,
-      siteName,
+      siteName: resolvedSiteName ?? undefined,
       machineId: machineId != null ? String(machineId) : null,
     });
 

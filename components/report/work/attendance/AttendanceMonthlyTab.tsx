@@ -136,9 +136,10 @@ export default function AttendanceMonthlyTab() {
       </header>
 
       <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2 lg:grid-cols-4">
-        <label className="flex flex-col gap-2 text-sm font-medium text-gray-700">
+        <label htmlFor="attendance-month" className="flex flex-col gap-2 text-sm font-medium text-gray-700">
           月
           <input
+            id="attendance-month"
             type="month"
             value={month}
             onChange={(event) => setMonth(event.target.value)}
@@ -146,9 +147,10 @@ export default function AttendanceMonthlyTab() {
           />
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium text-gray-700">
+        <label htmlFor="attendance-employee-search" className="flex flex-col gap-2 text-sm font-medium text-gray-700">
           従業員検索
           <input
+            id="attendance-employee-search"
             type="text"
             placeholder="名前で検索"
             value={employeeQuery}
@@ -157,10 +159,11 @@ export default function AttendanceMonthlyTab() {
           />
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium text-gray-700">
+        <label htmlFor="attendance-site" className="flex flex-col gap-2 text-sm font-medium text-gray-700">
           現場
           {siteOptions.length > 0 ? (
             <select
+              id="attendance-site"
               value={siteId}
               onChange={(event) => {
                 setSiteId(event.target.value);
@@ -177,6 +180,7 @@ export default function AttendanceMonthlyTab() {
             </select>
           ) : (
             <input
+              id="attendance-site"
               type="text"
               placeholder="現場名を入力"
               value={siteName}
@@ -186,10 +190,11 @@ export default function AttendanceMonthlyTab() {
           )}
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium text-gray-700">
+        <label htmlFor="attendance-machine" className="flex flex-col gap-2 text-sm font-medium text-gray-700">
           機械
           {machineOptions.length > 0 ? (
             <select
+              id="attendance-machine"
               value={machineId}
               onChange={(event) => setMachineId(event.target.value)}
               className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -203,6 +208,7 @@ export default function AttendanceMonthlyTab() {
             </select>
           ) : (
             <input
+              id="attendance-machine"
               type="text"
               placeholder="機械IDを入力"
               value={machineId}

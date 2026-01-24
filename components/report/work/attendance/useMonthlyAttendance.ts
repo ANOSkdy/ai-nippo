@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { buildAttendanceQuery, type AttendanceFilters } from './buildAttendanceQuery';
 
 export type AttendanceDay = {
   date: string;
@@ -40,13 +41,6 @@ export type MonthlyAttendanceResponse = {
   generatedAt: string;
 };
 
-export type AttendanceFilters = {
-  month: string;
-  siteId?: string;
-  siteName?: string;
-  machineId?: string;
-};
-
 type FetchState = 'idle' | 'loading' | 'success' | 'error';
 
 type UseMonthlyAttendance = {
@@ -56,15 +50,6 @@ type UseMonthlyAttendance = {
   reload: () => void;
 };
 
-function buildQuery(filters: AttendanceFilters): string {
-  const params = new URLSearchParams();
-  params.set('month', filters.month);
-  if (filters.siteId) params.set('siteId', filters.siteId);
-  if (!filters.siteId && filters.siteName) params.set('siteName', filters.siteName);
-  if (filters.machineId) params.set('machineId', filters.machineId);
-  return params.toString();
-}
-
 export function useMonthlyAttendance(filters: AttendanceFilters): UseMonthlyAttendance {
   const [data, setData] = useState<MonthlyAttendanceResponse | null>(null);
   const [state, setState] = useState<FetchState>('idle');
@@ -73,7 +58,7 @@ export function useMonthlyAttendance(filters: AttendanceFilters): UseMonthlyAtte
 
   const reload = useCallback(() => setReloadToken((prev) => prev + 1), []);
 
-  const query = useMemo(() => buildQuery(filters), [filters]);
+  const query = useMemo(() => buildAttendanceQuery(filters), [filters]);
 
   useEffect(() => {
     if (!filters.month) {

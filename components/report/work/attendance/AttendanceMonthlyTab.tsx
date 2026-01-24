@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import AttendanceDetailSheet from './AttendanceDetailSheet';
 import AttendanceMatrix from './AttendanceMatrix';
+import { buildAttendanceQuery } from './buildAttendanceQuery';
 import { useMonthlyAttendance, type AttendanceRow } from './useMonthlyAttendance';
 
 const today = new Date();
@@ -119,6 +120,11 @@ export default function AttendanceMonthlyTab() {
   );
 
   const { data, state, error, reload } = useMonthlyAttendance(filters);
+  const exportQuery = useMemo(() => buildAttendanceQuery(filters), [filters]);
+  const exportUrl = useMemo(
+    () => `/api/report/work/attendance/export/excel?${exportQuery}`,
+    [exportQuery],
+  );
 
   const filteredRows = useMemo<AttendanceRow[]>(() => {
     if (!data?.rows) return [];
@@ -242,11 +248,21 @@ export default function AttendanceMonthlyTab() {
 
       {state === 'success' && data ? (
         filteredRows.length > 0 ? (
-          <AttendanceMatrix
-            days={data.days}
-            rows={filteredRows}
-            onSelectCell={(payload) => setSelectedCell(payload)}
-          />
+          <div className="space-y-3">
+            <div className="flex items-center justify-end">
+              <a
+                href={exportUrl}
+                className="inline-flex items-center gap-2 rounded border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+              >
+                Excel出力
+              </a>
+            </div>
+            <AttendanceMatrix
+              days={data.days}
+              rows={filteredRows}
+              onSelectCell={(payload) => setSelectedCell(payload)}
+            />
+          </div>
         ) : (
           <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-500 shadow-sm">
             該当する勤怠データがありません。

@@ -1,5 +1,12 @@
 'use client';
 
+import {
+  BASE_HOURS_PER_DAY,
+  SUMMARY_COLUMNS,
+  SUMMARY_COLUMN_WIDTH,
+  formatAttendanceHours,
+  formatBreakHours,
+} from '@/lib/report/work/attendance/attendanceMatrixConfig';
 import type { AttendanceDay, AttendanceRow } from './useMonthlyAttendance';
 
 export type AttendanceMatrixProps = {
@@ -7,29 +14,6 @@ export type AttendanceMatrixProps = {
   rows: AttendanceRow[];
   onSelectCell: (payload: { userId: number | null; userName: string; date: string }) => void;
 };
-
-const SUMMARY_COLUMNS = [
-  { key: 'hours', label: '合計h' },
-  { key: 'workDays', label: '出勤日数' },
-  { key: 'breakDeductMin', label: '休憩控除h' },
-  { key: 'overtimeHours', label: '時間外h' },
-] as const;
-
-const SUMMARY_COLUMN_WIDTH = 96;
-const BASE_HOURS_PER_DAY = 7.5;
-
-function formatHours(value: number, showZeroAsDash = false): string {
-  if (!Number.isFinite(value) || value === 0) {
-    return showZeroAsDash ? '–' : '0.00';
-  }
-  return value.toFixed(2);
-}
-
-function formatBreakHours(minutes: number): string {
-  if (!Number.isFinite(minutes)) return '0.00';
-  if (minutes === 0) return '0.00';
-  return (minutes / 60).toFixed(2);
-}
 
 export default function AttendanceMatrix({ days, rows, onSelectCell }: AttendanceMatrixProps) {
   return (
@@ -110,10 +94,10 @@ export default function AttendanceMatrix({ days, rows, onSelectCell }: Attendanc
                           if (!isClickable) return;
                           onSelectCell({ userId: row.userId, userName: row.name, date: day.date });
                         }}
-                        aria-label={`${row.name} ${day.date} ${formatHours(baseHours, true)}`}
+                        aria-label={`${row.name} ${day.date} ${formatAttendanceHours(baseHours, true)}`}
                       >
                         <span className="inline-flex items-center gap-1 tabular-nums">
-                          <span>{formatHours(baseHours, true)}</span>
+                          <span>{formatAttendanceHours(baseHours, true)}</span>
                           {hasAnomaly ? <span className="text-amber-600">⚠︎</span> : null}
                         </span>
                       </button>
@@ -124,7 +108,7 @@ export default function AttendanceMatrix({ days, rows, onSelectCell }: Attendanc
                   let value = '–';
                   switch (column.key) {
                     case 'hours':
-                      value = formatHours(baseTotal, false);
+                      value = formatAttendanceHours(baseTotal, false);
                       break;
                     case 'workDays':
                       value = `${row.totals.workDays}`;
@@ -183,9 +167,11 @@ export default function AttendanceMatrix({ days, rows, onSelectCell }: Attendanc
                           if (!isClickable) return;
                           onSelectCell({ userId: row.userId, userName: row.name, date: day.date });
                         }}
-                        aria-label={`${row.name} ${day.date} 超過 ${formatHours(overtimeHours, true)}`}
+                        aria-label={`${row.name} ${day.date} 超過 ${formatAttendanceHours(overtimeHours, true)}`}
                       >
-                        <span className="tabular-nums">{formatHours(overtimeHours, true)}</span>
+                        <span className="tabular-nums">
+                          {formatAttendanceHours(overtimeHours, true)}
+                        </span>
                       </button>
                     </td>
                   );
@@ -194,7 +180,7 @@ export default function AttendanceMatrix({ days, rows, onSelectCell }: Attendanc
                   let value = '–';
                   switch (column.key) {
                     case 'overtimeHours':
-                      value = formatHours(overtimeTotal, true);
+                      value = formatAttendanceHours(overtimeTotal, true);
                       break;
                     default:
                       value = '–';

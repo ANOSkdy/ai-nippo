@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
 import {
-  aggregateMonthlyAttendance,
-  type AttendanceUser,
-} from '@/lib/report/work/attendance/aggregateMonthlyAttendance';
-import { getMonthDateRange } from '@/lib/report/work/attendance/dateUtils';
-import { normalizeSession } from '@/lib/report/work/attendance/normalize';
-import { fetchAttendanceSessions } from '@/lib/report/work/attendance/sessions';
-import { resolveSiteName } from '@/lib/report/work/attendance/siteUtils';
+  InvalidMonthError,
+  SiteNotFoundError,
+  getMonthlyAttendance,
+} from '@/lib/report/work/attendance/getMonthlyAttendance';
 import { AirtableError } from '@/src/lib/airtable/client';
 
 function parseAirtableErrorDetails(error: AirtableError): unknown {
@@ -38,11 +35,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'month is required' }, { status: 400 });
   }
 
-  const range = getMonthDateRange(monthParam);
-  if (!range) {
-    return NextResponse.json({ error: 'month must be YYYY-MM format' }, { status: 400 });
-  }
-
   let userId: number | null = null;
   let machineId: number | null = null;
   try {
@@ -55,48 +47,24 @@ export async function GET(req: Request) {
   }
 
   try {
-    const resolvedSiteName = await resolveSiteName(siteId, siteName);
-    if (siteId && !siteName && !resolvedSiteName) {
+    const response = await getMonthlyAttendance({
+      month: monthParam,
+      siteId,
+      siteName,
+      userId,
+      machineId,
+    });
+    return NextResponse.json(response, { status: 200 });
+  } catch (error) {
+    if (error instanceof InvalidMonthError) {
+      return NextResponse.json({ error: 'month must be YYYY-MM format' }, { status: 400 });
+    }
+    if (error instanceof SiteNotFoundError) {
       return NextResponse.json(
-        { message: 'siteId not found', details: { siteId } },
+        { message: 'siteId not found', details: { siteId: error.siteId } },
         { status: 404 },
       );
     }
-
-    const sessions = (await fetchAttendanceSessions({
-      startDate: range.startDate,
-      endDate: range.endDate,
-      userId,
-      siteName: resolvedSiteName ?? undefined,
-      machineId: machineId != null ? String(machineId) : null,
-    })).map(normalizeSession);
-
-    const usersMap = new Map<string, AttendanceUser>();
-    for (const session of sessions) {
-      const key = session.userId != null
-        ? `userId:${session.userId}`
-        : session.userRecordId
-        ? `record:${session.userRecordId}`
-        : session.userName
-        ? `name:${session.userName}`
-        : 'unknown';
-      if (!usersMap.has(key)) {
-        usersMap.set(key, {
-          userId: session.userId ?? null,
-          name: session.userName ?? null,
-          userRecordId: session.userRecordId ?? null,
-        });
-      }
-    }
-
-    const response = aggregateMonthlyAttendance(
-      sessions,
-      Array.from(usersMap.values()),
-      monthParam,
-    );
-
-    return NextResponse.json(response, { status: 200 });
-  } catch (error) {
     if (error instanceof AirtableError && error.status === 422) {
       const details = parseAirtableErrorDetails(error);
       console.error('[/api/report/work/attendance] airtable error', {

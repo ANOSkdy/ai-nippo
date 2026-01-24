@@ -182,16 +182,14 @@ function toSessionRow(record: RawSessionRecord): AttendanceSession | null {
 
   const machineIdValue = pickFirstString(fields, [
     'machineId',
-    'machineId (from machine)',
     'machine id',
     'machineid',
   ]);
   const machineIdNumber =
-    asNumber(getFieldValue(fields, 'machineId')) ?? asNumber(getFieldValue(fields, 'machineId (from machine)'));
+    asNumber(getFieldValue(fields, 'machineId'));
   const machineId = machineIdValue ?? (machineIdNumber != null ? String(machineIdNumber) : null);
   const machineName = pickFirstString(fields, [
     'machineName',
-    'machineName (from machine)',
     'machine name',
     'machinename',
   ]);
@@ -372,10 +370,8 @@ export async function fetchAttendanceSessions(query: AttendanceSessionQuery): Pr
         'user',
         'name (from user)',
         'machineId',
-        'machineId (from machine)',
         'machine',
         'machineName',
-        'machineName (from machine)',
         'workDescription',
         'status',
       ],

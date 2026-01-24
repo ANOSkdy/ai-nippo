@@ -16,6 +16,7 @@ const SUMMARY_COLUMNS = [
 ] as const;
 
 const SUMMARY_COLUMN_WIDTH = 96;
+const BASE_HOURS_PER_DAY = 7.5;
 
 function formatHours(value: number, showZeroAsDash = false): string {
   if (!Number.isFinite(value) || value === 0) {
@@ -70,77 +71,151 @@ export default function AttendanceMatrix({ days, rows, onSelectCell }: Attendanc
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={`${row.userId ?? 'unknown'}-${row.name}`} className="border-b border-gray-100">
-              <th
-                className="sticky left-0 z-10 border-r border-gray-200 bg-white px-3 py-2 text-left text-sm font-medium text-gray-800"
-                style={{ minWidth: 160 }}
-              >
-                {row.name}
-              </th>
-              {days.map((day) => {
-                const cell = row.daily[day.date];
-                const hours = cell?.hours ?? 0;
-                const hasAnomaly = cell?.hasAnomaly ?? false;
-                const isClickable = row.userId != null;
-                return (
-                  <td
-                    key={`${row.name}-${day.date}`}
-                    className={`border-r border-gray-100 p-0 text-center text-xs ${
-                      day.isWeekend ? 'bg-rose-50' : 'bg-white'
-                    } ${isClickable ? 'hover:bg-indigo-50' : 'text-gray-400'}`}
-                  >
-                    <button
-                      type="button"
-                      className={`h-full w-full px-2 py-2 text-xs ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
-                      disabled={!isClickable}
-                      onClick={() => {
-                        if (!isClickable) return;
-                        onSelectCell({ userId: row.userId, userName: row.name, date: day.date });
-                      }}
-                      aria-label={`${row.name} ${day.date} ${formatHours(hours, true)}`}
+          {rows.flatMap((row) => {
+            const baseTotal = days.reduce((total, day) => {
+              const hours = row.daily[day.date]?.hours ?? 0;
+              return total + Math.min(hours, BASE_HOURS_PER_DAY);
+            }, 0);
+            const overtimeTotal = days.reduce((total, day) => {
+              const hours = row.daily[day.date]?.hours ?? 0;
+              return total + Math.max(hours - BASE_HOURS_PER_DAY, 0);
+            }, 0);
+            const rowKey = `${row.userId ?? 'unknown'}-${row.name}`;
+            const baseRow = (
+              <tr key={rowKey} className="border-b border-gray-100">
+                <th
+                  className="sticky left-0 z-10 border-r border-gray-200 bg-white px-3 py-2 text-left text-sm font-medium text-gray-800"
+                  style={{ minWidth: 160 }}
+                >
+                  {row.name}
+                </th>
+                {days.map((day) => {
+                  const cell = row.daily[day.date];
+                  const hours = cell?.hours ?? 0;
+                  const baseHours = Math.min(hours, BASE_HOURS_PER_DAY);
+                  const hasAnomaly = cell?.hasAnomaly ?? false;
+                  const isClickable = row.userId != null;
+                  return (
+                    <td
+                      key={`${row.name}-${day.date}-base`}
+                      className={`border-r border-gray-100 p-0 text-center text-xs ${
+                        day.isWeekend ? 'bg-rose-50' : 'bg-white'
+                      } ${isClickable ? 'hover:bg-indigo-50' : 'text-gray-400'}`}
                     >
-                      <span className="inline-flex items-center gap-1 tabular-nums">
-                        <span>{formatHours(hours, true)}</span>
-                        {hasAnomaly ? <span className="text-amber-600">⚠︎</span> : null}
-                      </span>
-                    </button>
-                  </td>
-                );
-              })}
-              {SUMMARY_COLUMNS.map((column, index) => {
-                let value = '0';
-                switch (column.key) {
-                  case 'hours':
-                    value = formatHours(row.totals.hours, false);
-                    break;
-                  case 'workDays':
-                    value = `${row.totals.workDays}`;
-                    break;
-                  case 'breakDeductMin':
-                    value = formatBreakHours(row.totals.breakDeductMin);
-                    break;
-                  case 'overtimeHours':
-                    value = formatHours(row.totals.overtimeHours, false);
-                    break;
-                  default:
-                    value = '0';
-                }
-                return (
-                  <td
-                    key={`${row.name}-${column.key}`}
-                    className="sticky z-20 border-l border-gray-200 bg-white px-2 py-2 text-center text-xs font-semibold text-gray-700"
-                    style={{
-                      right: `${(SUMMARY_COLUMNS.length - 1 - index) * SUMMARY_COLUMN_WIDTH}px`,
-                      minWidth: SUMMARY_COLUMN_WIDTH,
-                    }}
-                  >
-                    <span className="tabular-nums">{value}</span>
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
+                      <button
+                        type="button"
+                        className={`h-full w-full px-2 py-2 text-xs ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
+                        disabled={!isClickable}
+                        onClick={() => {
+                          if (!isClickable) return;
+                          onSelectCell({ userId: row.userId, userName: row.name, date: day.date });
+                        }}
+                        aria-label={`${row.name} ${day.date} ${formatHours(baseHours, true)}`}
+                      >
+                        <span className="inline-flex items-center gap-1 tabular-nums">
+                          <span>{formatHours(baseHours, true)}</span>
+                          {hasAnomaly ? <span className="text-amber-600">⚠︎</span> : null}
+                        </span>
+                      </button>
+                    </td>
+                  );
+                })}
+                {SUMMARY_COLUMNS.map((column, index) => {
+                  let value = '–';
+                  switch (column.key) {
+                    case 'hours':
+                      value = formatHours(baseTotal, false);
+                      break;
+                    case 'workDays':
+                      value = `${row.totals.workDays}`;
+                      break;
+                    case 'breakDeductMin':
+                      value = formatBreakHours(row.totals.breakDeductMin);
+                      break;
+                    case 'overtimeHours':
+                      value = '–';
+                      break;
+                    default:
+                      value = '–';
+                  }
+                  return (
+                    <td
+                      key={`${row.name}-${column.key}-base`}
+                      className="sticky z-20 border-l border-gray-200 bg-white px-2 py-2 text-center text-xs font-semibold text-gray-700"
+                      style={{
+                        right: `${(SUMMARY_COLUMNS.length - 1 - index) * SUMMARY_COLUMN_WIDTH}px`,
+                        minWidth: SUMMARY_COLUMN_WIDTH,
+                      }}
+                    >
+                      <span className="tabular-nums">{value}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+            const overtimeRow = (
+              <tr key={`${rowKey}-overtime`} className="border-b border-gray-100">
+                <th
+                  className="sticky left-0 z-10 border-r border-gray-200 bg-white px-3 py-2 text-left text-xs font-medium text-gray-500"
+                  style={{ minWidth: 160 }}
+                >
+                  <span className="ml-4">超過</span>
+                </th>
+                {days.map((day) => {
+                  const cell = row.daily[day.date];
+                  const hours = cell?.hours ?? 0;
+                  const overtimeHours = Math.max(hours - BASE_HOURS_PER_DAY, 0);
+                  const isClickable = row.userId != null;
+                  return (
+                    <td
+                      key={`${row.name}-${day.date}-overtime`}
+                      className={`border-r border-gray-100 p-0 text-center text-xs ${
+                        day.isWeekend ? 'bg-rose-50' : 'bg-white'
+                      } ${isClickable ? 'hover:bg-indigo-50' : 'text-gray-400'}`}
+                    >
+                      <button
+                        type="button"
+                        className={`h-full w-full px-2 py-2 text-xs text-red-600 ${
+                          isClickable ? 'cursor-pointer' : 'cursor-default'
+                        }`}
+                        disabled={!isClickable}
+                        onClick={() => {
+                          if (!isClickable) return;
+                          onSelectCell({ userId: row.userId, userName: row.name, date: day.date });
+                        }}
+                        aria-label={`${row.name} ${day.date} 超過 ${formatHours(overtimeHours, true)}`}
+                      >
+                        <span className="tabular-nums">{formatHours(overtimeHours, true)}</span>
+                      </button>
+                    </td>
+                  );
+                })}
+                {SUMMARY_COLUMNS.map((column, index) => {
+                  let value = '–';
+                  switch (column.key) {
+                    case 'overtimeHours':
+                      value = formatHours(overtimeTotal, true);
+                      break;
+                    default:
+                      value = '–';
+                  }
+                  return (
+                    <td
+                      key={`${row.name}-${column.key}-overtime`}
+                      className="sticky z-20 border-l border-gray-200 bg-white px-2 py-2 text-center text-xs font-semibold text-red-600"
+                      style={{
+                        right: `${(SUMMARY_COLUMNS.length - 1 - index) * SUMMARY_COLUMN_WIDTH}px`,
+                        minWidth: SUMMARY_COLUMN_WIDTH,
+                      }}
+                    >
+                      <span className="tabular-nums">{value}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+            return [baseRow, overtimeRow];
+          })}
         </tbody>
       </table>
     </div>

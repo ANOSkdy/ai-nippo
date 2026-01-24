@@ -23,7 +23,7 @@ export type AttendanceTotals = {
   minutesRounded: number;
   workDays: number;
   breakDeductMin: number;
-  anomalyDays: number;
+  overtimeHours: number;
 };
 
 export type AttendanceRow = {

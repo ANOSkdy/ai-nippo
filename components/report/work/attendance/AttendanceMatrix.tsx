@@ -12,7 +12,7 @@ const SUMMARY_COLUMNS = [
   { key: 'hours', label: '合計h' },
   { key: 'workDays', label: '出勤日数' },
   { key: 'breakDeductMin', label: '休憩控除h' },
-  { key: 'anomalyDays', label: '異常日数' },
+  { key: 'overtimeHours', label: '時間外h' },
 ] as const;
 
 const SUMMARY_COLUMN_WIDTH = 96;
@@ -120,8 +120,8 @@ export default function AttendanceMatrix({ days, rows, onSelectCell }: Attendanc
                   case 'breakDeductMin':
                     value = formatBreakHours(row.totals.breakDeductMin);
                     break;
-                  case 'anomalyDays':
-                    value = `${row.totals.anomalyDays}`;
+                  case 'overtimeHours':
+                    value = formatHours(row.totals.overtimeHours, false);
                     break;
                   default:
                     value = '0';

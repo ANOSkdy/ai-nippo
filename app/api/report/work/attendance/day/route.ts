@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { computeDailyAttendance } from '@/lib/report/work/attendance/aggregateMonthlyAttendance';
 import { fetchAttendanceSessions } from '@/lib/report/work/attendance/sessions';
 import { resolveSiteName } from '@/lib/report/work/attendance/siteUtils';
+import { normalizeSession } from '@/lib/report/work/attendance/normalize';
 
 function parseDateParam(value: string | null): string | null {
   if (!value) {
@@ -54,13 +55,13 @@ export async function GET(req: Request) {
         { status: 404 },
       );
     }
-    const sessions = await fetchAttendanceSessions({
+    const sessions = (await fetchAttendanceSessions({
       startDate: dateParam,
       endDate: dateParam,
       userId,
       siteName: resolvedSiteName ?? undefined,
       machineId: machineId != null ? String(machineId) : null,
-    });
+    })).map(normalizeSession);
 
     const calculation = computeDailyAttendance(sessions);
     const userName = sessions.find((session) => session.userName)?.userName ?? null;
@@ -82,6 +83,8 @@ export async function GET(req: Request) {
           machineName: session.machineName,
           workDescription: session.workDescription,
           status: session.status,
+          statusNormalized: session.statusNormalized,
+          statusRaw: session.statusRaw,
         })),
         calculation: {
           activeMinutes: calculation.activeMinutes,

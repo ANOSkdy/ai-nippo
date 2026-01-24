@@ -1,6 +1,7 @@
 import { getTimeCalcConfig, hoursFromMinutes, roundToStep } from '@/src/lib/timecalc';
 import { getStandardBreakMinutes } from './breakRules';
 import { buildMonthDays, type AttendanceDay } from './dateUtils';
+import { normalizeSessionStatus } from './normalize';
 import type { AttendanceSession } from './sessions';
 
 export type AttendanceDaySummary = {
@@ -35,7 +36,7 @@ export type AttendanceUserRow = {
     minutesRounded: number;
     workDays: number;
     breakDeductMin: number;
-    anomalyDays: number;
+    overtimeHours: number;
   };
 };
 
@@ -53,6 +54,8 @@ export type AttendanceUser = {
   name: string | null;
   userRecordId?: string | null;
 };
+
+const OVERTIME_THRESHOLD_MINUTES = 7.5 * 60;
 
 function roundMinutes(value: number): number {
   const config = getTimeCalcConfig();
@@ -95,9 +98,10 @@ export function computeDailyAttendance(sessionsForDay: AttendanceSession[]): Att
   const intervals: AttendanceInterval[] = [];
 
   for (const session of sessionsForDay) {
-    const statusText = session.status?.toLowerCase() ?? null;
-    if (!statusText || statusText !== 'closed') {
-      anomalies.push(`status:${session.status ?? 'unknown'}:${session.id}`);
+    const statusNormalized = session.statusNormalized ?? normalizeSessionStatus(session.status);
+    if (statusNormalized === 'unknown' || statusNormalized === 'other') {
+      const statusLabel = session.statusRaw ?? session.status ?? statusNormalized;
+      anomalies.push(`status:${statusLabel}:${session.id}`);
     }
     if (session.startMs == null || session.endMs == null) {
       anomalies.push(`missing-range:${session.id}`);
@@ -207,13 +211,14 @@ export function aggregateMonthlyAttendance(
     let totalMinutes = 0;
     let totalBreakDeduct = 0;
     let workDays = 0;
-    let anomalyDays = 0;
+    let overtimeMinutesTotal = 0;
 
     for (const [date, sessionsForDay] of dayMap.entries()) {
       const summary = computeDailyAttendance(sessionsForDay);
       const minutesRounded = summary.roundedMinutes;
       const hours = hoursFromMinutes(minutesRounded);
       const hasAnomaly = summary.anomalies.length > 0;
+      const overtimeMinutes = Math.max(0, minutesRounded - OVERTIME_THRESHOLD_MINUTES);
 
       daily[date] = {
         hours,
@@ -228,9 +233,7 @@ export function aggregateMonthlyAttendance(
       if (minutesRounded > 0) {
         workDays += 1;
       }
-      if (hasAnomaly) {
-        anomalyDays += 1;
-      }
+      overtimeMinutesTotal += overtimeMinutes;
 
       const dayTotal = dayTotals.get(date) ?? { minutesRounded: 0 };
       dayTotal.minutesRounded += minutesRounded;
@@ -246,7 +249,7 @@ export function aggregateMonthlyAttendance(
         minutesRounded: totalMinutes,
         workDays,
         breakDeductMin: totalBreakDeduct,
-        anomalyDays,
+        overtimeHours: hoursFromMinutes(overtimeMinutesTotal),
       },
     });
   }

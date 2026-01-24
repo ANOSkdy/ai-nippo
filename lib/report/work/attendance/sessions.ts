@@ -1,6 +1,7 @@
 import { usersTable, withRetry } from '@/lib/airtable';
 import type { UserFields } from '@/types';
 import { AirtableError, listRecords } from '@/src/lib/airtable/client';
+import type { NormalizedSessionStatus } from './normalize';
 
 const SESSIONS_TABLE = 'Sessions';
 
@@ -20,6 +21,8 @@ export type AttendanceSession = {
   machineId: string | null;
   machineName: string | null;
   status: string | null;
+  statusNormalized?: NormalizedSessionStatus;
+  statusRaw?: string | null;
 };
 
 export type AttendanceSessionQuery = {

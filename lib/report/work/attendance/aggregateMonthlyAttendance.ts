@@ -1,4 +1,9 @@
-import { getTimeCalcConfig, hoursFromMinutes, roundToStep } from '@/src/lib/timecalc';
+import {
+  getTimeCalcConfig,
+  hoursFromMinutes,
+  roundToStep,
+  shouldSkipDailyBreakByUsername,
+} from '@/src/lib/timecalc';
 import { getStandardBreakMinutes } from './breakRules';
 import { buildMonthDays, type AttendanceDay } from './dateUtils';
 import { normalizeSessionStatus } from './normalize';
@@ -93,7 +98,10 @@ export function mergeIntervals(intervals: AttendanceInterval[]): AttendanceInter
 /**
  * 日別の稼働集計を算出する。
  */
-export function computeDailyAttendance(sessionsForDay: AttendanceSession[]): AttendanceDaySummary {
+export function computeDailyAttendance(
+  sessionsForDay: AttendanceSession[],
+  options: { skipBreakDeduction?: boolean } = {},
+): AttendanceDaySummary {
   const anomalies: string[] = [];
   const intervals: AttendanceInterval[] = [];
 
@@ -129,7 +137,9 @@ export function computeDailyAttendance(sessionsForDay: AttendanceSession[]): Att
 
   const gapMinutes = Math.max(0, grossMinutes - activeMinutes);
   const standardBreakMinutes = getStandardBreakMinutes(grossMinutes);
-  const deductBreakMinutes = Math.max(0, standardBreakMinutes - gapMinutes);
+  const deductBreakMinutes = options.skipBreakDeduction
+    ? 0
+    : Math.max(0, standardBreakMinutes - gapMinutes);
   const netMinutes = Math.max(0, activeMinutes - deductBreakMinutes);
   const roundedMinutes = roundMinutes(netMinutes);
 
@@ -208,13 +218,16 @@ export function aggregateMonthlyAttendance(
     const name = userInfo?.name ?? sampleSession?.userName ?? '未登録ユーザー';
 
     const daily: AttendanceUserRow['daily'] = {};
+    const skipBreakDeduction = shouldSkipDailyBreakByUsername(
+      sampleSession?.userName ?? (userId != null ? String(userId) : ''),
+    );
     let totalMinutes = 0;
     let totalBreakDeduct = 0;
     let workDays = 0;
     let overtimeMinutesTotal = 0;
 
     for (const [date, sessionsForDay] of dayMap.entries()) {
-      const summary = computeDailyAttendance(sessionsForDay);
+      const summary = computeDailyAttendance(sessionsForDay, { skipBreakDeduction });
       const minutesRounded = summary.roundedMinutes;
       const hours = hoursFromMinutes(minutesRounded);
       const hasAnomaly = summary.anomalies.length > 0;

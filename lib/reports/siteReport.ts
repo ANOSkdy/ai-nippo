@@ -1,7 +1,7 @@
 import { sitesTable } from '@/lib/airtable';
 import { compareMachineId } from '@/lib/utils/sort';
 import { fetchSessionReportRows, type SessionReportRow } from '@/src/lib/sessions-reports';
-import { applyTimeCalcV2FromMinutes } from '@/src/lib/timecalc';
+import { applyTimeCalcV2FromMinutes, shouldSkipDailyBreakByUsername } from '@/src/lib/timecalc';
 import type { SiteFields } from '@/types';
 
 const DOW = ['日', '月', '火', '水', '木', '金', '土'] as const;
@@ -69,6 +69,7 @@ type ColumnAccumulator = {
   key: string;
   userRecId?: string;
   userName: string;
+  skipBreakDeduction: boolean;
   workDescription: string;
   machineId: string | null;
   machineName: string | null;
@@ -146,6 +147,9 @@ export async function buildSiteReport({
     const workDescription = session.workDescription?.trim() || '（未設定）';
 
     const userName = session.userName?.trim() || '不明ユーザー';
+    const skipBreakDeduction = shouldSkipDailyBreakByUsername(
+      session.userName ?? (session.userId != null ? String(session.userId) : ''),
+    );
     const userKey = resolveSessionUserKey(session);
     const machineNameValue = session.machineName?.trim() || null;
     const normalizedMachineId = normalizeMachineIdValue(session.machineId);
@@ -156,6 +160,7 @@ export async function buildSiteReport({
         key: columnKey,
         userRecId: session.userRecordId ?? undefined,
         userName,
+        skipBreakDeduction,
         workDescription,
         machineId: normalizedMachineId,
         machineName: machineNameValue,
@@ -216,7 +221,11 @@ export async function buildSiteReport({
 
   const hoursByKey = new Map<string, number>();
   for (const [groupKey, totalMinutes] of minutesByKey.entries()) {
-    const { hours } = applyTimeCalcV2FromMinutes(totalMinutes);
+    const [, columnKey] = groupKey.split('|');
+    const column = columnMap.get(columnKey ?? '');
+    const { hours } = applyTimeCalcV2FromMinutes(totalMinutes, {
+      breakMinutes: column?.skipBreakDeduction ? 0 : undefined,
+    });
     hoursByKey.set(groupKey, hours);
   }
 

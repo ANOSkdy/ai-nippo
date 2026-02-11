@@ -47,6 +47,10 @@ function resolveSessionUserKey(session: SessionReportRow) {
   return session.id;
 }
 
+function normalizeUserNameKey(userName: string) {
+  return userName.trim().toLocaleLowerCase('ja');
+}
+
 export type ReportColumn = {
   key: string;
   userRecId?: string;
@@ -150,7 +154,10 @@ export async function buildSiteReport({
     const machineNameValue = session.machineName?.trim() || null;
     const normalizedMachineId = normalizeMachineIdValue(session.machineId);
     const machineKey = normalizedMachineId ?? (machineNameValue ? `name:${machineNameValue}` : 'machine:unknown');
-    const columnKey = `${userKey}__${workDescription}__${machineKey}`;
+    const normalizedUserNameKey = normalizeUserNameKey(userName);
+    const mergedUserMachineKey =
+      normalizedMachineId != null ? `user-machine:${normalizedUserNameKey}__${normalizedMachineId}` : null;
+    const columnKey = mergedUserMachineKey ?? `${userKey}__${workDescription}__${machineKey}`;
     if (!columnMap.has(columnKey)) {
       columnMap.set(columnKey, {
         key: columnKey,

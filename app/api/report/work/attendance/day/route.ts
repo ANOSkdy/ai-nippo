@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { computeDailyAttendance } from '@/lib/report/work/attendance/aggregateMonthlyAttendance';
+import { computeDailyAttendance } from '@/lib/report/work/attendance/computeDailyAttendance';
+import { isBreakPolicyEnabled, resolveBreakPolicy } from '@/lib/policies/breakDeduction';
 import { fetchAttendanceSessions } from '@/lib/report/work/attendance/sessions';
 import { resolveSiteName } from '@/lib/report/work/attendance/siteUtils';
 import { normalizeSession } from '@/lib/report/work/attendance/normalize';
@@ -63,7 +64,15 @@ export async function GET(req: Request) {
       machineId: machineId != null ? String(machineId) : null,
     })).map(normalizeSession);
 
-    const calculation = computeDailyAttendance(sessions);
+    const policy = await resolveBreakPolicy({
+      userId,
+      userRecordId: sessions.find((session) => session.userRecordId)?.userRecordId ?? null,
+      userName: sessions.find((session) => session.userName)?.userName ?? null,
+    });
+    const breakPolicyApplied = isBreakPolicyEnabled() && !policy.excludeBreakDeduction;
+    const calculation = computeDailyAttendance(sessions, {
+      skipStandardBreakDeduction: !breakPolicyApplied,
+    });
     const userName = sessions.find((session) => session.userName)?.userName ?? null;
 
     return NextResponse.json(
@@ -96,6 +105,7 @@ export async function GET(req: Request) {
           roundedMinutes: calculation.roundedMinutes,
           roundedHours: calculation.roundedHours,
           anomalies: calculation.anomalies,
+          breakPolicyApplied: calculation.breakPolicyApplied,
         },
       },
       { status: 200 },

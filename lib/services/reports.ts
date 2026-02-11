@@ -30,6 +30,10 @@ function parseNumeric(value: string | null | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function escapeAirtableValue(value: string): string {
+  return value.replace(/'/g, "\\'");
+}
+
 async function resolveUserBySelector(selector: string): Promise<ResolvedUser | null> {
   const normalizedSelector = normalizeText(selector);
   if (!normalizedSelector) {
@@ -37,10 +41,22 @@ async function resolveUserBySelector(selector: string): Promise<ResolvedUser | n
   }
 
   const selectorNumber = parseNumeric(selector);
+  const escapedSelector = escapeAirtableValue(normalizedSelector);
+  const formulaParts = [
+    `LOWER({name})='${escapedSelector}'`,
+    `LOWER({username})='${escapedSelector}'`,
+  ];
+  if (selectorNumber != null) {
+    const escapedNumeric = escapeAirtableValue(String(selectorNumber));
+    formulaParts.push(`{userId}='${escapedNumeric}'`);
+  }
+  const filterByFormula = `OR(${formulaParts.join(',')})`;
+
   const records = await withRetry(() =>
     usersTable
       .select({
         fields: ['name', 'username', 'userId'],
+        filterByFormula,
       })
       .all(),
   );

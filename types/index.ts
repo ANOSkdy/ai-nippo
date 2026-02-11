@@ -7,6 +7,7 @@ export interface UserFields extends FieldSet {
   username: string;
   role: 'admin' | 'user';
   active?: boolean;
+  excludeBreakDeduction?: boolean | string | number;
 }
 
 export interface MachineFields extends FieldSet {

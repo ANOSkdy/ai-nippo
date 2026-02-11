@@ -171,6 +171,8 @@ export function groupReportRowsByDate(rows: ReportRow[]): ReportRowGroup[] {
       rawDurationMinutes: computeRawDuration(row),
     }));
 
+    const shouldApplyGroupBreak = decorated.every((item) => item.row.breakPolicyApplied !== false);
+
     let breakTargetIndex = -1;
     let maxDuration = -1;
     decorated.forEach((item, index) => {
@@ -202,7 +204,7 @@ export function groupReportRowsByDate(rows: ReportRow[]): ReportRowGroup[] {
     });
 
     const computedItems: ReportRowWithStats[] = decorated.map((item, index) => {
-      const applyBreak = hasBreakTarget && index === breakTargetIndex;
+      const applyBreak = shouldApplyGroupBreak && hasBreakTarget && index === breakTargetIndex;
       const base = applyBreak ? Math.max(0, item.rawDurationMinutes - breakMinutes) : item.rawDurationMinutes;
       const roundedWorking = roundMinutes(base, roundingEnabled, roundStep, roundMode);
       const overtimeRaw = Math.max(0, roundedWorking - STANDARD_WORK_MINUTES);
@@ -222,7 +224,7 @@ export function groupReportRowsByDate(rows: ReportRow[]): ReportRowGroup[] {
     let summaryWorkingMinutes = 0;
     if (earliestStartMs != null && latestEndMs != null && latestEndMs > earliestStartMs) {
       const spanMinutes = Math.max(0, Math.round((latestEndMs - earliestStartMs) / 60000));
-      const spanAfterBreak = Math.max(0, spanMinutes - breakMinutes);
+      const spanAfterBreak = shouldApplyGroupBreak ? Math.max(0, spanMinutes - breakMinutes) : spanMinutes;
       summaryWorkingMinutes = roundMinutes(spanAfterBreak, roundingEnabled, roundStep, roundMode);
     }
     const summaryOvertimeRaw = Math.max(0, summaryWorkingMinutes - STANDARD_WORK_MINUTES);

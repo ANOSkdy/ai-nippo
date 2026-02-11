@@ -1,7 +1,8 @@
 import { sitesTable } from '@/lib/airtable';
 import { compareMachineId } from '@/lib/utils/sort';
 import { fetchSessionReportRows, type SessionReportRow } from '@/src/lib/sessions-reports';
-import { applyTimeCalcV2FromMinutes } from '@/src/lib/timecalc';
+import { applyTimeCalcV2FromMinutes, hoursFromMinutes } from '@/src/lib/timecalc';
+import { isBreakPolicyEnabled, resolveBreakPolicy, type BreakPolicyResult } from '@/lib/policies/breakDeduction';
 import type { SiteFields } from '@/types';
 
 const DOW = ['日', '月', '火', '水', '木', '金', '土'] as const;
@@ -60,6 +61,7 @@ export type ReportColumn = {
   machineName?: string | null;
   machineIds: Array<string | number>;
   machineNames: string[];
+  breakPolicyApplied?: boolean;
 };
 
 export type DayRow = {
@@ -76,6 +78,7 @@ type ColumnAccumulator = {
   workDescription: string;
   machineId: string | null;
   machineName: string | null;
+  breakPolicyApplied: boolean;
 };
 
 export type SiteReportResult = {
@@ -118,6 +121,8 @@ export async function buildSiteReport({
 
   const columnMap = new Map<string, ColumnAccumulator>();
   const minutesByKey = new Map<string, number>();
+  const policyCache = new Map<string, BreakPolicyResult>();
+  const breakPolicyEnabled = isBreakPolicyEnabled();
 
   for (const session of sessions) {
     if (!session.isCompleted || !session.date || session.year !== year || session.month !== month) {
@@ -143,6 +148,12 @@ export async function buildSiteReport({
     const rawMinutes =
       session.durationMin ?? (session.hours != null ? Math.round(session.hours * 60) : null);
     const minutes = typeof rawMinutes === 'number' ? Math.round(rawMinutes) : 0;
+    const policy = await resolveBreakPolicy({
+      userRecordId: session.userRecordId,
+      userId: session.userId,
+      userName: session.userName,
+    }, policyCache);
+    const breakPolicyApplied = breakPolicyEnabled && !policy.excludeBreakDeduction;
     if (minutes <= 0 || minutes >= 24 * 60) {
       continue;
     }
@@ -166,6 +177,7 @@ export async function buildSiteReport({
         workDescription,
         machineId: normalizedMachineId,
         machineName: machineNameValue,
+        breakPolicyApplied,
       });
     }
 
@@ -182,6 +194,8 @@ export async function buildSiteReport({
     if (!column.machineName && machineName) {
       column.machineName = machineName;
     }
+
+    column.breakPolicyApplied = breakPolicyApplied;
 
     const groupKey = `${session.date}|${columnKey}`;
     minutesByKey.set(groupKey, (minutesByKey.get(groupKey) ?? 0) + minutes);
@@ -219,12 +233,21 @@ export async function buildSiteReport({
       machineName: column.machineName,
       machineIds: column.machineId ? [column.machineId] : [],
       machineNames: column.machineName ? [column.machineName] : [],
+      breakPolicyApplied: column.breakPolicyApplied,
     }));
 
   const hoursByKey = new Map<string, number>();
+  const columnByKey = new Map(columns.map((column) => [column.key, column]));
   for (const [groupKey, totalMinutes] of minutesByKey.entries()) {
-    const { hours } = applyTimeCalcV2FromMinutes(totalMinutes);
-    hoursByKey.set(groupKey, hours);
+    const columnKey = groupKey.split('|')[1] ?? '';
+    const column = columnByKey.get(columnKey);
+    const applyBreak = column?.breakPolicyApplied ?? false;
+    if (applyBreak) {
+      const { hours } = applyTimeCalcV2FromMinutes(totalMinutes);
+      hoursByKey.set(groupKey, hours);
+    } else {
+      hoursByKey.set(groupKey, hoursFromMinutes(totalMinutes));
+    }
   }
 
   const days: DayRow[] = [];

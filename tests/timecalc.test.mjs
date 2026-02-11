@@ -15,6 +15,7 @@ execSync(
 const {
   applyTimeCalcV2FromMinutes,
   applyTimeCalcV2FromHours,
+  shouldSkipDailyBreakByUsername,
 } = await import('./dist/timecalc.js');
 
 process.env.TIME_CALC_VERSION = '2';
@@ -44,4 +45,11 @@ test('四半期切り上げ指定で 62 分が 75 分に丸められる', () => 
   const result = applyTimeCalcV2FromMinutes(62, { breakMinutes: 0, roundMode: 'up' });
   assert.equal(result.minutes, 75);
   assert.equal(result.hours, 1.25);
+});
+
+test('username が 115 以上の数値なら休憩控除をスキップする', () => {
+  assert.equal(shouldSkipDailyBreakByUsername('114'), false);
+  assert.equal(shouldSkipDailyBreakByUsername('115'), true);
+  assert.equal(shouldSkipDailyBreakByUsername('200'), true);
+  assert.equal(shouldSkipDailyBreakByUsername('A115'), false);
 });

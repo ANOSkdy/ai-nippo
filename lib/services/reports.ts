@@ -1,7 +1,7 @@
 import { sitesTable, withRetry } from '@/lib/airtable';
 import type { ReportRow } from '@/lib/reports/pair';
 import { fetchSessionReportRows, type SessionReportRow } from '@/src/lib/sessions-reports';
-import { normalizeDailyMinutes } from '@/src/lib/timecalc';
+import { applyTimeCalcV2FromMinutes, shouldSkipDailyBreakByUsername } from '@/src/lib/timecalc';
 
 type SortKey = 'year' | 'month' | 'day' | 'siteName';
 
@@ -209,6 +209,7 @@ export async function getReportRowsByUserName(
   }
 
   const sessions = await fetchSessionReportRows({ userName: trimmedName });
+  const skipBreakDeduction = shouldSkipDailyBreakByUsername(trimmedName);
   const completedSessions = sessions.filter(
     (session) => session.isCompleted && session.year && session.month && session.day,
   );
@@ -225,7 +226,9 @@ export async function getReportRowsByUserName(
     { workingMinutes: number; overtimeMinutes: number }
   >();
   for (const [dayKey, aggregate] of aggregates.entries()) {
-    const normalizedMinutes = normalizeDailyMinutes(aggregate.totalMinutes);
+    const normalizedMinutes = applyTimeCalcV2FromMinutes(aggregate.totalMinutes, {
+      breakMinutes: skipBreakDeduction ? 0 : undefined,
+    }).minutes;
     const workingMinutes = Math.min(normalizedMinutes, STANDARD_WORK_MINUTES);
     const overtimeMinutes = Math.max(0, normalizedMinutes - STANDARD_WORK_MINUTES);
     dailySummaries.set(dayKey, {

@@ -127,7 +127,11 @@ function sortGroupItems(items: ReportRow[]): ReportRow[] {
   });
 }
 
-export function groupReportRowsByDate(rows: ReportRow[]): ReportRowGroup[] {
+type GroupReportRowsOptions = {
+  skipBreakDeduction?: boolean;
+};
+
+export function groupReportRowsByDate(rows: ReportRow[], options: GroupReportRowsOptions = {}): ReportRowGroup[] {
   const map = new Map<string, ReportRowGroup>();
 
   for (const row of rows ?? []) {
@@ -155,7 +159,8 @@ export function groupReportRowsByDate(rows: ReportRow[]): ReportRowGroup[] {
   }
 
   const config = getTimeCalcConfig();
-  const breakMinutes = config.breakMinutes > 0 ? config.breakMinutes : 90;
+  const breakMinutesBase = config.breakMinutes > 0 ? config.breakMinutes : 90;
+  const breakMinutes = options.skipBreakDeduction ? 0 : breakMinutesBase;
   const roundStep = config.roundMinutes > 0 ? config.roundMinutes : 15;
   const roundMode = config.roundMode;
   const roundingEnabled = config.enabled !== false;

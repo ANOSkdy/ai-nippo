@@ -87,3 +87,15 @@ export function normalizeDailyMinutes(rawMinutes: number) {
 export function normalizeDailyHours(rawHours: number) {
   return applyTimeCalcV2FromHours(rawHours).hours;
 }
+
+export function shouldSkipDailyBreakByUsername(username: string): boolean {
+  const trimmed = username.trim();
+  if (!trimmed) {
+    return false;
+  }
+  if (!/^\d+$/.test(trimmed)) {
+    return false;
+  }
+  const numeric = Number.parseInt(trimmed, 10);
+  return Number.isFinite(numeric) && numeric >= 115;
+}

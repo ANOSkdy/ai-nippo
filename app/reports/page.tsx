@@ -217,6 +217,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
                         <th className="border px-3 py-2 text-left font-semibold">日</th>
                         <th className="border px-3 py-2 text-left font-semibold">曜</th>
                         <th className="border px-3 py-2 text-left font-semibold">従業員</th>
+                        <th className="border px-3 py-2 text-left font-semibold">現場名</th>
                         <th className="border px-3 py-2 text-left font-semibold">始業</th>
                         <th className="border px-3 py-2 text-left font-semibold">終業</th>
                         <th className="border px-3 py-2 text-right font-semibold">稼働</th>
@@ -245,6 +246,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
                             <td className="border px-3 py-2 tabular-nums">{row.day}</td>
                             <td className="border px-3 py-2">{weekdayLabel}</td>
                             <td className="border px-3 py-2">{filters.user || '—'}</td>
+                            <td className="border px-3 py-2">{row.siteName || '—'}</td>
                             <td className="border px-3 py-2 tabular-nums">{row.startJst ?? '—'}</td>
                             <td className="border px-3 py-2 tabular-nums">
                               <div className="flex items-center gap-2">
@@ -273,7 +275,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Sea
                     </tbody>
                     <tfoot className="bg-gray-50 text-gray-700">
                       <tr>
-                        <td className="border px-3 py-2 font-semibold" colSpan={7}>
+                        <td className="border px-3 py-2 font-semibold" colSpan={8}>
                           合計
                         </td>
                         <td className="border px-3 py-2 text-right tabular-nums font-semibold">

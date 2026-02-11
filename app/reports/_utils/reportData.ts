@@ -81,16 +81,20 @@ export function parseFilters(searchParams?: SearchParams): Filters {
 
 export async function fetchUsers(): Promise<string[]> {
   const records = await usersTable
-    .select({ fields: ['name'], sort: [{ field: 'name', direction: 'asc' }] })
+    .select({ fields: ['name', 'username'], sort: [{ field: 'name', direction: 'asc' }] })
     .all();
-  const names = new Set<string>();
+  const options = new Set<string>();
   for (const record of records) {
-    const name = typeof record.fields.name === 'string' ? record.fields.name : null;
+    const name = typeof record.fields.name === 'string' ? record.fields.name.trim() : '';
+    const username = typeof record.fields.username === 'string' ? record.fields.username.trim() : '';
     if (name) {
-      names.add(name);
+      options.add(name);
+    }
+    if (username) {
+      options.add(username);
     }
   }
-  return Array.from(names).sort((a, b) => a.localeCompare(b, 'ja'));
+  return Array.from(options).sort((a, b) => a.localeCompare(b, 'ja'));
 }
 
 export function formatQuarterHours(minutes: number): string {

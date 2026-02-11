@@ -114,6 +114,7 @@ export type SessionReportQuery = {
   siteId?: string | null;
   siteName?: string | null;
   userId?: string | number | null;
+  userRecordId?: string | null;
   userName?: string | null;
   year?: string | number | null;
   month?: string | number | null;
@@ -381,10 +382,15 @@ function matchesQuery(row: SessionReportRow, query?: SessionReportQuery): boolea
       return false;
     }
   }
+  if (query.userRecordId) {
+    if (row.userRecordId !== query.userRecordId) {
+      return false;
+    }
+  }
   if (query.userName) {
     const expected = normalizeText(query.userName);
     const actual = normalizeText(row.userName);
-    if (expected && actual && expected !== actual) {
+    if (expected && expected !== actual) {
       return false;
     }
   }

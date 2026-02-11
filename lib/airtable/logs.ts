@@ -180,7 +180,10 @@ function toNormalizedLog(record: AirtableRecord<LogFields>): NormalizedLog | nul
   const userLinks = Array.isArray(fields[LOG_FIELDS.user])
     ? (fields[LOG_FIELDS.user] as readonly string[])
     : [];
-  const userIdField = typeof fields['userId'] === 'string' ? (fields['userId'] as string) : null;
+  const userIdField =
+    normalizeLookupText(fields[LOG_FIELDS.userId]) ??
+    normalizeLookupText(fields[LOG_FIELDS.userIdFromUser]) ??
+    null;
   const siteLinks = Array.isArray(fields[LOG_FIELDS.site])
     ? (fields[LOG_FIELDS.site] as readonly string[])
     : [];
@@ -228,7 +231,7 @@ function toNormalizedLog(record: AirtableRecord<LogFields>): NormalizedLog | nul
     type: typeRaw,
     timestamp: timestampRaw,
     timestampMs,
-    userId: userLinks.length > 0 ? String(userLinks[0]) : null,
+    userId: userLinks.length > 0 ? String(userLinks[0]) : userIdField,
     userName,
     userLookupKeys: Array.from(lookupKeys),
     machineId,

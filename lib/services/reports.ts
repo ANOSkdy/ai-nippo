@@ -1,9 +1,75 @@
-import { sitesTable, withRetry } from '@/lib/airtable';
+import { sitesTable, usersTable, withRetry } from '@/lib/airtable';
 import type { ReportRow } from '@/lib/reports/pair';
+import type { UserFields } from '@/types';
 import { fetchSessionReportRows, type SessionReportRow } from '@/src/lib/sessions-reports';
 import { applyTimeCalcV2FromMinutes, shouldSkipDailyBreakByUsername } from '@/src/lib/timecalc';
 
 type SortKey = 'year' | 'month' | 'day' | 'siteName';
+
+type ResolvedUser = {
+  recordId: string;
+  username: string | null;
+};
+
+function normalizeText(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed.toLocaleLowerCase('ja');
+}
+
+function parseNumeric(value: string | null | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function resolveUserBySelector(selector: string): Promise<ResolvedUser | null> {
+  const normalizedSelector = normalizeText(selector);
+  if (!normalizedSelector) {
+    return null;
+  }
+
+  const selectorNumber = parseNumeric(selector);
+  const records = await withRetry(() =>
+    usersTable
+      .select({
+        fields: ['name', 'username', 'userId'],
+      })
+      .all(),
+  );
+
+  for (const record of records) {
+    const fields = record.fields as Partial<UserFields> | undefined;
+    const name = normalizeLookupText(fields?.name) ?? null;
+    const username = normalizeLookupText(fields?.username) ?? null;
+    const userIdValue =
+      typeof fields?.userId === 'number'
+        ? fields.userId
+        : typeof fields?.userId === 'string'
+        ? Number(fields.userId)
+        : null;
+    const userId = Number.isFinite(userIdValue) ? Number(userIdValue) : null;
+
+    if (normalizeText(name) === normalizedSelector) {
+      return { recordId: record.id, username };
+    }
+    if (normalizeText(username) === normalizedSelector) {
+      return { recordId: record.id, username };
+    }
+    if (selectorNumber != null && userId != null && selectorNumber === userId) {
+      return { recordId: record.id, username };
+    }
+  }
+
+  return null;
+}
 
 function normalizeLookupText(value: unknown): string | null {
   if (value == null) {
@@ -208,8 +274,13 @@ export async function getReportRowsByUserName(
     return [];
   }
 
-  const sessions = await fetchSessionReportRows({ userName: trimmedName });
-  const skipBreakDeduction = shouldSkipDailyBreakByUsername(trimmedName);
+  const resolvedUser = await resolveUserBySelector(trimmedName);
+  const sessions = resolvedUser
+    ? await fetchSessionReportRows({ userRecordId: resolvedUser.recordId })
+    : await fetchSessionReportRows({ userName: trimmedName });
+  const skipBreakDeduction = shouldSkipDailyBreakByUsername(
+    resolvedUser?.username ?? trimmedName,
+  );
   const completedSessions = sessions.filter(
     (session) => session.isCompleted && session.year && session.month && session.day,
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import AttendanceDetailSheet from './AttendanceDetailSheet';
 import AttendanceMatrix from './AttendanceMatrix';
 import { buildAttendanceQuery } from './buildAttendanceQuery';
@@ -9,36 +9,9 @@ import { useMonthlyAttendance, type AttendanceRow } from './useMonthlyAttendance
 const today = new Date();
 const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 
-type SiteMaster = {
-  id: string;
-  fields: {
-    name?: string;
-  };
-};
-
-type MachineMaster = {
-  id: string;
-  fields?: {
-    machineid?: string | null;
-    machineId?: string | null;
-    name?: string | null;
-  };
-};
-
-function toText(value: unknown) {
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  return '';
-}
-
 export default function AttendanceMonthlyTab() {
   const [month, setMonth] = useState(defaultMonth);
   const [employeeQuery, setEmployeeQuery] = useState('');
-  const [sites, setSites] = useState<SiteMaster[]>([]);
-  const [machines, setMachines] = useState<MachineMaster[]>([]);
-  const [siteId, setSiteId] = useState('');
-  const [siteName, setSiteName] = useState('');
-  const [machineId, setMachineId] = useState('');
 
   const [selectedCell, setSelectedCell] = useState<{
     userId: number | null;
@@ -46,77 +19,11 @@ export default function AttendanceMonthlyTab() {
     date: string;
   } | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    async function loadMasters() {
-      try {
-        const machineResponsePromise = fetch('/api/masters/machines', {
-          cache: 'no-store',
-          credentials: 'same-origin',
-        }).catch((error) => {
-          console.warn('[attendance] failed to fetch machine masters', error);
-          return null;
-        });
-        const [siteRes, machineRes] = await Promise.all([
-          fetch('/api/masters/sites', { cache: 'no-store', credentials: 'same-origin' }),
-          machineResponsePromise,
-        ]);
-        if (!siteRes.ok) {
-          throw new Error('Failed to load site masters');
-        }
-        const sitesJson = (await siteRes.json()) as SiteMaster[] | null;
-        if (!active) return;
-        setSites(Array.isArray(sitesJson) ? sitesJson : []);
-        if (machineRes?.ok) {
-          const json = await machineRes.json();
-          if (!active) return;
-          const list: MachineMaster[] = Array.isArray(json?.records)
-            ? json.records
-            : Array.isArray(json)
-              ? json
-              : [];
-          setMachines(list);
-        } else if (machineRes && !machineRes.ok) {
-          console.warn('[attendance] machine masters responded with non-ok status', machineRes.status);
-          if (active) {
-            setMachines([]);
-          }
-        }
-      } catch (err) {
-        console.error('[attendance] failed to load masters', err);
-      }
-    }
-    loadMasters();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const siteOptions = useMemo(() => {
-    return sites
-      .map((site) => ({ id: site.id, name: toText(site.fields?.name) }))
-      .filter((site) => site.name.length > 0)
-      .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-  }, [sites]);
-
-  const machineOptions = useMemo(() => {
-    return machines
-      .map((machine) => ({
-        id: toText(machine.fields?.machineid ?? machine.fields?.machineId),
-        name: toText(machine.fields?.name),
-      }))
-      .filter((machine) => machine.id.length > 0)
-      .sort((a, b) => a.id.localeCompare(b.id, 'ja'));
-  }, [machines]);
-
   const filters = useMemo(
     () => ({
       month,
-      siteId: siteId || undefined,
-      siteName: !siteId && siteName ? siteName : undefined,
-      machineId: machineId || undefined,
     }),
-    [machineId, month, siteId, siteName],
+    [month],
   );
 
   const { data, state, error, reload } = useMonthlyAttendance(filters);
@@ -141,7 +48,7 @@ export default function AttendanceMonthlyTab() {
         <p className="text-sm text-gray-500">稼働時間を月次マトリクスで確認できます。</p>
       </header>
 
-      <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2">
         <label htmlFor="attendance-month" className="flex flex-col gap-2 text-sm font-medium text-gray-700">
           月
           <input
@@ -165,64 +72,6 @@ export default function AttendanceMonthlyTab() {
           />
         </label>
 
-        <label htmlFor="attendance-site" className="flex flex-col gap-2 text-sm font-medium text-gray-700">
-          現場
-          {siteOptions.length > 0 ? (
-            <select
-              id="attendance-site"
-              value={siteId}
-              onChange={(event) => {
-                setSiteId(event.target.value);
-                setSiteName('');
-              }}
-              className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            >
-              <option value="">-- すべて --</option>
-              {siteOptions.map((site) => (
-                <option key={site.id} value={site.id}>
-                  {site.name}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              id="attendance-site"
-              type="text"
-              placeholder="現場名を入力"
-              value={siteName}
-              onChange={(event) => setSiteName(event.target.value)}
-              className="rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          )}
-        </label>
-
-        <label htmlFor="attendance-machine" className="flex flex-col gap-2 text-sm font-medium text-gray-700">
-          機械
-          {machineOptions.length > 0 ? (
-            <select
-              id="attendance-machine"
-              value={machineId}
-              onChange={(event) => setMachineId(event.target.value)}
-              className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            >
-              <option value="">-- すべて --</option>
-              {machineOptions.map((machine) => (
-                <option key={machine.id} value={machine.id}>
-                  {machine.name ? `${machine.name} (${machine.id})` : machine.id}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              id="attendance-machine"
-              type="text"
-              placeholder="機械IDを入力"
-              value={machineId}
-              onChange={(event) => setMachineId(event.target.value)}
-              className="rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          )}
-        </label>
       </div>
 
       {state === 'loading' ? (
@@ -276,11 +125,7 @@ export default function AttendanceMonthlyTab() {
         date={selectedCell?.date ?? null}
         userId={selectedCell?.userId ?? null}
         userName={selectedCell?.userName ?? null}
-        filters={{
-          siteId: filters.siteId,
-          siteName: filters.siteName,
-          machineId: filters.machineId,
-        }}
+        filters={{}}
       />
     </section>
   );

@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('user-report');
 
-  sheet.addRow(['年', '月', '日', '曜', '従業員', '始業', '終業', '稼働', '超過', '計']);
+  sheet.addRow(['年', '月', '日', '曜', '従業員', '現場名', '始業', '終業', '稼働', '超過', '計']);
   sheet.getRow(1).font = { bold: true };
 
   sortedItems.forEach((row) => {
@@ -88,6 +88,7 @@ export async function GET(req: NextRequest) {
       row.day,
       weekdayLabel,
       filters.user,
+      row.siteName ?? '—',
       row.startJst ?? '—',
       endLabel,
       formatWorkingHours(row.workingMinutes),
@@ -98,6 +99,7 @@ export async function GET(req: NextRequest) {
 
   const totalRow = sheet.addRow([
     '合計',
+    '',
     '',
     '',
     '',
